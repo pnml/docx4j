@@ -44,6 +44,7 @@ import org.apache.xmlgraphics.image.loader.ImageSessionContext;
 import org.apache.xmlgraphics.image.loader.ImageSize;
 import org.apache.xmlgraphics.image.loader.impl.DefaultImageContext;
 import org.apache.xmlgraphics.image.loader.impl.DefaultImageSessionContext;
+import org.apache.xmlgraphics.image.loader.spi.ImageImplRegistry;
 import org.docx4j.UnitsOfMeasurement;
 import org.docx4j.dml.picture.Pic;
 import org.docx4j.dml.wordprocessingDrawing.Anchor;
@@ -122,12 +123,17 @@ public abstract class BinaryPartAbstractImage extends BinaryPart {
 		BinaryPartAbstractImage.density = density;
 	}
 
-	static {
-		
-		imageManager = new ImageManager(new DefaultImageContext());
-		
-	}
 	static ImageManager imageManager;
+	static {
+		imageManager = new ImageManager(new ImageImplRegistry(false), new DefaultImageContext());
+		imageManager.getRegistry().registerPreloader(new org.apache.xmlgraphics.image.loader.impl.PreloaderTIFF());
+		imageManager.getRegistry().registerPreloader(new org.apache.xmlgraphics.image.loader.impl.PreloaderGIF());
+		imageManager.getRegistry().registerPreloader(new org.apache.xmlgraphics.image.loader.impl.PreloaderJPEG());
+		imageManager.getRegistry().registerPreloader(new org.apache.xmlgraphics.image.loader.impl.PreloaderBMP());
+		imageManager.getRegistry().registerPreloader(new org.apache.xmlgraphics.image.loader.impl.PreloaderEMF());
+		imageManager.getRegistry().registerPreloader(new org.apache.xmlgraphics.image.loader.impl.PreloaderEPS());
+		imageManager.getRegistry().registerPreloader(new org.apache.xmlgraphics.image.loader.impl.imageio.PreloaderImageIO());
+	}
 
 	/**
 	 * Create an image part from the provided byte array, attach it to the 

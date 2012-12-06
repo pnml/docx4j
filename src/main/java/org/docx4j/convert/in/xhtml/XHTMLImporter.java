@@ -1006,7 +1006,7 @@ public class XHTMLImporter {
 			    return;
 			}
 			base64String = base64String.substring( commaPos+1 );
-			System.out.println(base64String);
+//			System.out.println(base64String);
 			try {
 				imageBytes = Base64.decodeBase64( base64String.getBytes("UTF8") );
 			} catch (UnsupportedEncodingException e1) {

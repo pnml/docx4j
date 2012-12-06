@@ -37,12 +37,13 @@
     <!-- ====================================================================== -->
 
 
+<!--
     <logger name="org.apache.commons">
-  		<level value="info"/> 
+  		<level value="info"/>
 	</logger>
 
     <logger name="org.docx4j">
-  		<level value="info"/> 
+  		<level value="info"/>
 	</logger>	
 	
 	<logger name="org.docx4j.jaxb">
@@ -51,32 +52,33 @@
 
 	    
     <logger name="org.docx4j.document.wordprocessingml">
-  		<level value="info"/> 
+  		<level value="info"/>
 	</logger>
 	
     <logger name="org.docx4j.openpackaging">
-  		<level value="info"/> 
+  		<level value="info"/>
 	</logger>
 
     <logger name="org.docx4j.openpackaging.io">
-  		<level value="debug"/> 
+  		<level value="debug"/>
 	</logger>
 
     <logger name="org.docx4j.openpackaging.packages">
-  		<level value="info"/> 
+  		<level value="info"/>
 	</logger>
 
     <logger name="org.docx4j.openpackaging.parts">
-  		<level value="debug"/> 
+  		<level value="debug"/>
 	</logger>
 
     <logger name="org.docx4j.fonts">
-  		<level value="debug"/> 
+  		<level value="debug"/>
 	</logger>
-  
+-->
+
 
     <root>
-        <level value="info" />
+        <level value="error" />
         <appender-ref ref="console"/>
         <!-- <appender-ref ref="error"/> -->
     </root>
