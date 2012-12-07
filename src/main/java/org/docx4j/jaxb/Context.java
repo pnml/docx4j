@@ -20,15 +20,11 @@
 package org.docx4j.jaxb;
 
 
-import java.io.File;
-import java.io.InputStream;
+import org.apache.log4j.Logger;
+import org.docx4j.utils.Log4jConfigurator;
 
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
-
-import org.apache.log4j.Logger;
-import org.docx4j.utils.Log4jConfigurator;
-import org.docx4j.utils.ResourceUtils;
 
 public class Context {
 	
@@ -57,6 +53,7 @@ public class Context {
 		Log4jConfigurator.configure();
 		
 		// Display diagnostic info about version of JAXB being used.
+/*
 		Object namespacePrefixMapper;
 		try {
 			namespacePrefixMapper = NamespacePrefixMapperUtils.getPrefixMapper();
@@ -65,7 +62,7 @@ public class Context {
 				if (f.exists() ) {
 					log.info("MOXy JAXB implementation intended..");
 					MOXy_intended = true;
-				} else { 
+				} else {
 					InputStream is = ResourceUtils.getResource("org/docx4j/wml/jaxb.properties");
 					log.info("MOXy JAXB implementation intended..");
 					MOXy_intended = true;
@@ -90,7 +87,8 @@ public class Context {
 			log.error("PANIC! No suitable JAXB implementation available");
 			e.printStackTrace();
 		}
-      
+*/
+
       try { 
 			
 			// JBOSS might use a different class loader to load JAXBContext, which causes problems,
