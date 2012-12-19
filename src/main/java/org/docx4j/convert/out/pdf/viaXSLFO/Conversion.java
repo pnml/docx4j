@@ -68,6 +68,7 @@ import org.docx4j.wml.PPrBase.NumPr.Ilvl;
 import org.docx4j.wml.RPr;
 import org.docx4j.wml.Style;
 import org.docx4j.wml.TcPr;
+import org.docx4j.wml.TrPr;
 import org.w3c.dom.Document;
 import org.w3c.dom.DocumentFragment;
 import org.w3c.dom.Element;
@@ -233,6 +234,28 @@ public class Conversion extends org.docx4j.convert.out.pdf.PdfConversion {
 		// See http://xmlgraphics.apache.org/fop/0.95/embedding.html
 		// (reuse if you plan to render multiple documents!)
 		FopFactory fopFactory = FopFactory.newInstance();
+
+//		FopFactory fopFactory = null;
+//		// in FOP r1356646 (after FOP 1.1),
+//		// FopFactory.newInstance() was replaced with FopFactory.newInstance(URI) 
+//		Method[] methods = FopFactory.class.getDeclaredMethods();		
+//		Method method;
+//		try {
+//			method = FopFactory.class.getDeclaredMethod("newInstance", new Class[0] );
+//			if (method==null) {
+//				Class[] params = new Class[1];
+//				params[0] = URI.class;
+//				method = FopFactory.class.getDeclaredMethod("newInstance", params );
+//				fopFactory = (FopFactory)method.invoke(null, new URI("http://") );
+//				// Also requires xmlgraphics-commons to be built from nightly 
+//				// for org/apache/xmlgraphics/image/loader/impl/AbstractImageSessionContext$FallbackResolver
+//				// which was introduced in r1391005 
+//			} else {
+//				fopFactory = (FopFactory)method.invoke(null);
+//			}
+//		} catch (Exception e1) {
+//			log.error(e1);
+//		} 
 
 		try {
 
@@ -870,17 +893,31 @@ public class Conversion extends org.docx4j.convert.out.pdf.PdfConversion {
     	
 	}
 	
+	/*
+	 *  @since 3.0.0
+	 */
+	public static void applyFoAttributes(List<Property> properties, Element foElement) {
+		if ((properties != null) && (!properties.isEmpty())) {
+			for (int i=0; i<properties.size(); i++) {
+				properties.get(i).setXslFO(foElement);
+			}
+		}
+	}
+	
+    protected static void createFoAttributes(TrPr trPr, Element foBlockElement){
+    	if (trPr == null) {
+    		return;
+    	}
+    	applyFoAttributes(PropertyFactory.createProperties(trPr), foBlockElement);
+    }
+	
     protected static void createFoAttributes(TcPr tcPr, Element foBlockElement){
     	// includes TcPrInner.TcBorders, CTShd, TcMar, CTVerticalJc
     	
 		if (tcPr==null) {
 			return;
 		}
-    	
-    	List<Property> properties = PropertyFactory.createProperties(tcPr);    	
-    	for( Property p :  properties ) {
-			p.setXslFO(foBlockElement);
-    	}    
+    	applyFoAttributes(PropertyFactory.createProperties(tcPr), foBlockElement);
     }
 	
 
