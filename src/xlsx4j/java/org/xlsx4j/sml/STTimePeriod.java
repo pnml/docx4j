@@ -1,7 +1,7 @@
 /*
- *  Copyright 2010, Plutext Pty Ltd.
+ *  Copyright 2010-2013, Plutext Pty Ltd.
  *   
- *  This file is part of docx4j.
+ *  This file is part of xlsx4j, a component of docx4j.
 
     docx4j is licensed under the Apache License, Version 2.0 (the "License"); 
     you may not use this file except in compliance with the License. 
@@ -17,8 +17,6 @@
     limitations under the License.
 
  */
-
-
 package org.xlsx4j.sml;
 
 import javax.xml.bind.annotation.XmlEnum;
@@ -53,74 +51,24 @@ import javax.xml.bind.annotation.XmlType;
 @XmlEnum
 public enum STTimePeriod {
 
-
-    /**
-     * Today
-     * 
-     */
     @XmlEnumValue("today")
     TODAY("today"),
-
-    /**
-     * Yesterday
-     * 
-     */
     @XmlEnumValue("yesterday")
     YESTERDAY("yesterday"),
-
-    /**
-     * Tomorrow
-     * 
-     */
     @XmlEnumValue("tomorrow")
     TOMORROW("tomorrow"),
-
-    /**
-     * Last 7 Days
-     * 
-     */
     @XmlEnumValue("last7Days")
     LAST_7_DAYS("last7Days"),
-
-    /**
-     * This Month
-     * 
-     */
     @XmlEnumValue("thisMonth")
     THIS_MONTH("thisMonth"),
-
-    /**
-     * Last Month
-     * 
-     */
     @XmlEnumValue("lastMonth")
     LAST_MONTH("lastMonth"),
-
-    /**
-     * Next Month
-     * 
-     */
     @XmlEnumValue("nextMonth")
     NEXT_MONTH("nextMonth"),
-
-    /**
-     * This Week
-     * 
-     */
     @XmlEnumValue("thisWeek")
     THIS_WEEK("thisWeek"),
-
-    /**
-     * Last Week
-     * 
-     */
     @XmlEnumValue("lastWeek")
     LAST_WEEK("lastWeek"),
-
-    /**
-     * Next Week
-     * 
-     */
     @XmlEnumValue("nextWeek")
     NEXT_WEEK("nextWeek");
     private final String value;

@@ -1,7 +1,7 @@
 /*
- *  Copyright 2010, Plutext Pty Ltd.
+ *  Copyright 2010-2013, Plutext Pty Ltd.
  *   
- *  This file is part of docx4j.
+ *  This file is part of xlsx4j, a component of docx4j.
 
     docx4j is licensed under the Apache License, Version 2.0 (the "License"); 
     you may not use this file except in compliance with the License. 
@@ -17,15 +17,16 @@
     limitations under the License.
 
  */
-
-
 package org.xlsx4j.sml;
 
+import javax.xml.bind.Unmarshaller;
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlSchemaType;
+import javax.xml.bind.annotation.XmlTransient;
 import javax.xml.bind.annotation.XmlType;
+import org.jvnet.jaxb2_commons.ppp.Child;
 
 
 /**
@@ -45,6 +46,7 @@ import javax.xml.bind.annotation.XmlType;
  *       &lt;attribute name="targetScreenSize" type="{http://schemas.openxmlformats.org/spreadsheetml/2006/main}ST_TargetScreenSize" default="800x600" />
  *       &lt;attribute name="dpi" type="{http://www.w3.org/2001/XMLSchema}unsignedInt" default="96" />
  *       &lt;attribute name="codePage" type="{http://www.w3.org/2001/XMLSchema}unsignedInt" />
+ *       &lt;attribute name="characterSet" type="{http://www.w3.org/2001/XMLSchema}string" />
  *     &lt;/restriction>
  *   &lt;/complexContent>
  * &lt;/complexType>
@@ -54,26 +56,31 @@ import javax.xml.bind.annotation.XmlType;
  */
 @XmlAccessorType(XmlAccessType.FIELD)
 @XmlType(name = "CT_WebPublishing")
-public class CTWebPublishing {
+public class CTWebPublishing implements Child
+{
 
-    @XmlAttribute
+    @XmlAttribute(name = "css")
     protected Boolean css;
-    @XmlAttribute
+    @XmlAttribute(name = "thicket")
     protected Boolean thicket;
-    @XmlAttribute
+    @XmlAttribute(name = "longFileNames")
     protected Boolean longFileNames;
-    @XmlAttribute
+    @XmlAttribute(name = "vml")
     protected Boolean vml;
-    @XmlAttribute
+    @XmlAttribute(name = "allowPng")
     protected Boolean allowPng;
-    @XmlAttribute
+    @XmlAttribute(name = "targetScreenSize")
     protected String targetScreenSize;
-    @XmlAttribute
+    @XmlAttribute(name = "dpi")
     @XmlSchemaType(name = "unsignedInt")
     protected Long dpi;
-    @XmlAttribute
+    @XmlAttribute(name = "codePage")
     @XmlSchemaType(name = "unsignedInt")
     protected Long codePage;
+    @XmlAttribute(name = "characterSet")
+    protected String characterSet;
+    @XmlTransient
+    private Object parent;
 
     /**
      * Gets the value of the css property.
@@ -293,6 +300,56 @@ public class CTWebPublishing {
      */
     public void setCodePage(Long value) {
         this.codePage = value;
+    }
+
+    /**
+     * Gets the value of the characterSet property.
+     * 
+     * @return
+     *     possible object is
+     *     {@link String }
+     *     
+     */
+    public String getCharacterSet() {
+        return characterSet;
+    }
+
+    /**
+     * Sets the value of the characterSet property.
+     * 
+     * @param value
+     *     allowed object is
+     *     {@link String }
+     *     
+     */
+    public void setCharacterSet(String value) {
+        this.characterSet = value;
+    }
+
+    /**
+     * Gets the parent object in the object tree representing the unmarshalled xml document.
+     * 
+     * @return
+     *     The parent object.
+     */
+    public Object getParent() {
+        return this.parent;
+    }
+
+    public void setParent(Object parent) {
+        this.parent = parent;
+    }
+
+    /**
+     * This method is invoked by the JAXB implementation on each instance when unmarshalling completes.
+     * 
+     * @param parent
+     *     The parent object in the object tree.
+     * @param unmarshaller
+     *     The unmarshaller that generated the instance.
+     */
+    public void afterUnmarshal(Unmarshaller unmarshaller, Object parent) {
+        setParent(parent);
     }
 
 }

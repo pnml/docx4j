@@ -101,7 +101,7 @@ public final class NumberingDefinitionsPart extends JaxbXmlPart<Numbering> {
 	
     public void initialiseMaps()
     {
-    	Numbering numbering = jaxbElement;
+    	Numbering numbering = getJaxbElement();
     	
         // count the number of different list numbering schemes
     	if (numbering.getNum().size() == 0)
@@ -199,7 +199,7 @@ public final class NumberingDefinitionsPart extends JaxbXmlPart<Numbering> {
 		lvlOverride.setStartOverride(start);
     	
     	// Add it to the jaxb object and our hashmap
-		((Numbering)jaxbElement).getNum().add(newNum);
+		((Numbering)getJaxbElement()).getNum().add(newNum);
         ListNumberingDefinition listDef 
     		= new ListNumberingDefinition(newNum, abstractListDefinitions);
         instanceListDefinitions.put(listDef.getListNumberId(), listDef);		
@@ -261,6 +261,10 @@ public final class NumberingDefinitionsPart extends JaxbXmlPart<Numbering> {
 		}
 		if (ilvl==null) ilvl = "0";
 		ListLevel ll = lnd.getLevel(ilvl);
+		if (ll==null) {
+			log.warn("No ListLevel defined for level " + ilvl + " in list " + numId);
+			return null;
+		}
 		
 		// OK, now on the JAXB plane
 		Lvl jaxbOverrideLvl = ll.getJaxbOverrideLvl();
@@ -347,7 +351,7 @@ public final class NumberingDefinitionsPart extends JaxbXmlPart<Numbering> {
     	abstractNum.setAbstractNumId( BigInteger.valueOf(nextId) );
     	
     	// Add it to our JAXB object
-    	this.jaxbElement.getAbstractNum().add(abstractNum);
+    	this.getJaxbElement().getAbstractNum().add(abstractNum);
     	
     	// Add it to our hashmap
         AbstractListNumberingDefinition absNumDef = new AbstractListNumberingDefinition(abstractNum);
@@ -372,7 +376,7 @@ public final class NumberingDefinitionsPart extends JaxbXmlPart<Numbering> {
     	num.setNumId( BigInteger.valueOf(nextId) );  
     	
     	// Add it to our JAXB object
-    	this.jaxbElement.getNum().add(num);
+    	this.getJaxbElement().getNum().add(num);
     	
     	// Add it to our hashmap
         ListNumberingDefinition listDef = new ListNumberingDefinition(num, abstractListDefinitions);

@@ -21,6 +21,8 @@ package org.docx4j.openpackaging.parts;
 
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
@@ -38,6 +40,7 @@ import org.docx4j.jaxb.JaxbValidationEventHandler;
 import org.docx4j.jaxb.NamespacePrefixMapperUtils;
 import org.docx4j.openpackaging.exceptions.Docx4JException;
 import org.docx4j.openpackaging.exceptions.InvalidFormatException;
+import org.docx4j.openpackaging.io3.stores.PartStore;
 import org.docx4j.wml.Numbering;
 
 /** OPC Parts are either XML, or binary (or text) documents.
@@ -100,6 +103,26 @@ public abstract class JaxbXmlPart<E> extends Part {
 	protected E jaxbElement = null;
 
 	public E getJaxbElement() {
+		
+		// Lazy unmarshal
+		if (jaxbElement==null) {
+			PartStore partStore = this.getPackage().getPartStore();
+			try {
+				String name = this.partName.getName();
+				InputStream is = partStore.loadPart( 
+						name.substring(1));
+				if (is==null) {
+					log.warn(name + " missing from part store");
+				} else {
+					log.info("Lazily unmarshalling " + name);
+					unmarshal( is );
+				}
+			} catch (JAXBException e) {
+				log.error(e);
+			} catch (Docx4JException e) {
+				log.error(e);
+			}
+		}
 		return jaxbElement;
 	}
 
@@ -110,6 +133,10 @@ public abstract class JaxbXmlPart<E> extends Part {
 	public void setJaxbElement(JAXBResult result) throws JAXBException {
 		
 		setJaxbElement((E)result.getResult());
+	}
+	
+	public boolean isUnmarshalled(){
+		return jaxbElement!=null;
 	}
 	
 	
@@ -151,6 +178,7 @@ public abstract class JaxbXmlPart<E> extends Part {
 		try {
 			Marshaller marshaller = jc.createMarshaller();
 			NamespacePrefixMapperUtils.setProperty(marshaller, namespacePrefixMapper);
+			getJaxbElement();
 			marshaller.marshal(jaxbElement, node);
 
 		} catch (JAXBException e) {
@@ -194,6 +222,7 @@ public abstract class JaxbXmlPart<E> extends Part {
 			NamespacePrefixMapperUtils.setProperty(marshaller, namespacePrefixMapper);
 			
 			log.info("marshalling " + this.getClass().getName() );	
+			getJaxbElement();
 			if (jaxbElement==null) {
 				log.error("No JAXBElement has been created for this part, yet!");
 				throw new JAXBException("No JAXBElement has been created for this part, yet!");

@@ -1,7 +1,7 @@
 /*
- *  Copyright 2010, Plutext Pty Ltd.
+ *  Copyright 2010-2013, Plutext Pty Ltd.
  *   
- *  This file is part of docx4j.
+ *  This file is part of xlsx4j, a component of docx4j.
 
     docx4j is licensed under the Apache License, Version 2.0 (the "License"); 
     you may not use this file except in compliance with the License. 
@@ -17,8 +17,6 @@
     limitations under the License.
 
  */
-
-
 package org.xlsx4j.sml;
 
 import javax.xml.bind.annotation.XmlEnum;
@@ -54,81 +52,26 @@ import javax.xml.bind.annotation.XmlType;
 @XmlEnum
 public enum STDataValidationImeMode {
 
-
-    /**
-     * IME Mode Not Controlled
-     * 
-     */
     @XmlEnumValue("noControl")
     NO_CONTROL("noControl"),
-
-    /**
-     * IME Off
-     * 
-     */
     @XmlEnumValue("off")
     OFF("off"),
-
-    /**
-     * IME On
-     * 
-     */
     @XmlEnumValue("on")
     ON("on"),
-
-    /**
-     * Disabled IME Mode
-     * 
-     */
     @XmlEnumValue("disabled")
     DISABLED("disabled"),
-
-    /**
-     * Hiragana IME Mode
-     * 
-     */
     @XmlEnumValue("hiragana")
     HIRAGANA("hiragana"),
-
-    /**
-     * Full Katakana IME Mode
-     * 
-     */
     @XmlEnumValue("fullKatakana")
     FULL_KATAKANA("fullKatakana"),
-
-    /**
-     * Half-Width Katakana
-     * 
-     */
     @XmlEnumValue("halfKatakana")
     HALF_KATAKANA("halfKatakana"),
-
-    /**
-     * Full-Width Alpha-Numeric IME Mode
-     * 
-     */
     @XmlEnumValue("fullAlpha")
     FULL_ALPHA("fullAlpha"),
-
-    /**
-     * Half Alpha IME
-     * 
-     */
     @XmlEnumValue("halfAlpha")
     HALF_ALPHA("halfAlpha"),
-
-    /**
-     * Full Width Hangul
-     * 
-     */
     @XmlEnumValue("fullHangul")
     FULL_HANGUL("fullHangul"),
-
-    /**
-     * Half-Width Hangul IME Mode
-     * 
-     */
     @XmlEnumValue("halfHangul")
     HALF_HANGUL("halfHangul");
     private final String value;

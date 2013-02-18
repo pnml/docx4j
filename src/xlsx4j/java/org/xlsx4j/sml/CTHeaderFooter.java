@@ -1,7 +1,7 @@
 /*
- *  Copyright 2010, Plutext Pty Ltd.
+ *  Copyright 2010-2013, Plutext Pty Ltd.
  *   
- *  This file is part of docx4j.
+ *  This file is part of xlsx4j, a component of docx4j.
 
     docx4j is licensed under the Apache License, Version 2.0 (the "License"); 
     you may not use this file except in compliance with the License. 
@@ -17,14 +17,15 @@
     limitations under the License.
 
  */
-
-
 package org.xlsx4j.sml;
 
+import javax.xml.bind.Unmarshaller;
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlAttribute;
+import javax.xml.bind.annotation.XmlTransient;
 import javax.xml.bind.annotation.XmlType;
+import org.jvnet.jaxb2_commons.ppp.Child;
 
 
 /**
@@ -37,12 +38,12 @@ import javax.xml.bind.annotation.XmlType;
  *   &lt;complexContent>
  *     &lt;restriction base="{http://www.w3.org/2001/XMLSchema}anyType">
  *       &lt;sequence>
- *         &lt;element name="oddHeader" type="{http://schemas.openxmlformats.org/spreadsheetml/2006/main}ST_Xstring" minOccurs="0"/>
- *         &lt;element name="oddFooter" type="{http://schemas.openxmlformats.org/spreadsheetml/2006/main}ST_Xstring" minOccurs="0"/>
- *         &lt;element name="evenHeader" type="{http://schemas.openxmlformats.org/spreadsheetml/2006/main}ST_Xstring" minOccurs="0"/>
- *         &lt;element name="evenFooter" type="{http://schemas.openxmlformats.org/spreadsheetml/2006/main}ST_Xstring" minOccurs="0"/>
- *         &lt;element name="firstHeader" type="{http://schemas.openxmlformats.org/spreadsheetml/2006/main}ST_Xstring" minOccurs="0"/>
- *         &lt;element name="firstFooter" type="{http://schemas.openxmlformats.org/spreadsheetml/2006/main}ST_Xstring" minOccurs="0"/>
+ *         &lt;element name="oddHeader" type="{http://schemas.openxmlformats.org/officeDocument/2006/sharedTypes}ST_Xstring" minOccurs="0"/>
+ *         &lt;element name="oddFooter" type="{http://schemas.openxmlformats.org/officeDocument/2006/sharedTypes}ST_Xstring" minOccurs="0"/>
+ *         &lt;element name="evenHeader" type="{http://schemas.openxmlformats.org/officeDocument/2006/sharedTypes}ST_Xstring" minOccurs="0"/>
+ *         &lt;element name="evenFooter" type="{http://schemas.openxmlformats.org/officeDocument/2006/sharedTypes}ST_Xstring" minOccurs="0"/>
+ *         &lt;element name="firstHeader" type="{http://schemas.openxmlformats.org/officeDocument/2006/sharedTypes}ST_Xstring" minOccurs="0"/>
+ *         &lt;element name="firstFooter" type="{http://schemas.openxmlformats.org/officeDocument/2006/sharedTypes}ST_Xstring" minOccurs="0"/>
  *       &lt;/sequence>
  *       &lt;attribute name="differentOddEven" type="{http://www.w3.org/2001/XMLSchema}boolean" default="false" />
  *       &lt;attribute name="differentFirst" type="{http://www.w3.org/2001/XMLSchema}boolean" default="false" />
@@ -64,7 +65,8 @@ import javax.xml.bind.annotation.XmlType;
     "firstHeader",
     "firstFooter"
 })
-public class CTHeaderFooter {
+public class CTHeaderFooter implements Child
+{
 
     protected String oddHeader;
     protected String oddFooter;
@@ -72,14 +74,16 @@ public class CTHeaderFooter {
     protected String evenFooter;
     protected String firstHeader;
     protected String firstFooter;
-    @XmlAttribute
+    @XmlAttribute(name = "differentOddEven")
     protected Boolean differentOddEven;
-    @XmlAttribute
+    @XmlAttribute(name = "differentFirst")
     protected Boolean differentFirst;
-    @XmlAttribute
+    @XmlAttribute(name = "scaleWithDoc")
     protected Boolean scaleWithDoc;
-    @XmlAttribute
+    @XmlAttribute(name = "alignWithMargins")
     protected Boolean alignWithMargins;
+    @XmlTransient
+    private Object parent;
 
     /**
      * Gets the value of the oddHeader property.
@@ -335,6 +339,32 @@ public class CTHeaderFooter {
      */
     public void setAlignWithMargins(Boolean value) {
         this.alignWithMargins = value;
+    }
+
+    /**
+     * Gets the parent object in the object tree representing the unmarshalled xml document.
+     * 
+     * @return
+     *     The parent object.
+     */
+    public Object getParent() {
+        return this.parent;
+    }
+
+    public void setParent(Object parent) {
+        this.parent = parent;
+    }
+
+    /**
+     * This method is invoked by the JAXB implementation on each instance when unmarshalling completes.
+     * 
+     * @param parent
+     *     The parent object in the object tree.
+     * @param unmarshaller
+     *     The unmarshaller that generated the instance.
+     */
+    public void afterUnmarshal(Unmarshaller unmarshaller, Object parent) {
+        setParent(parent);
     }
 
 }

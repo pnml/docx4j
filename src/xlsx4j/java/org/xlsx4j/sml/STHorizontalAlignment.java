@@ -1,7 +1,7 @@
 /*
- *  Copyright 2010, Plutext Pty Ltd.
+ *  Copyright 2010-2013, Plutext Pty Ltd.
  *   
- *  This file is part of docx4j.
+ *  This file is part of xlsx4j, a component of docx4j.
 
     docx4j is licensed under the Apache License, Version 2.0 (the "License"); 
     you may not use this file except in compliance with the License. 
@@ -17,8 +17,6 @@
     limitations under the License.
 
  */
-
-
 package org.xlsx4j.sml;
 
 import javax.xml.bind.annotation.XmlEnum;
@@ -51,60 +49,20 @@ import javax.xml.bind.annotation.XmlType;
 @XmlEnum
 public enum STHorizontalAlignment {
 
-
-    /**
-     * General Horizontal Alignment
-     * 
-     */
     @XmlEnumValue("general")
     GENERAL("general"),
-
-    /**
-     * Left Horizontal Alignment
-     * 
-     */
     @XmlEnumValue("left")
     LEFT("left"),
-
-    /**
-     * Centered Horizontal Alignment
-     * 
-     */
     @XmlEnumValue("center")
     CENTER("center"),
-
-    /**
-     * Right Horizontal Alignment
-     * 
-     */
     @XmlEnumValue("right")
     RIGHT("right"),
-
-    /**
-     * Fill
-     * 
-     */
     @XmlEnumValue("fill")
     FILL("fill"),
-
-    /**
-     * Justify
-     * 
-     */
     @XmlEnumValue("justify")
     JUSTIFY("justify"),
-
-    /**
-     * Center Continuous Horizontal Alignment
-     * 
-     */
     @XmlEnumValue("centerContinuous")
     CENTER_CONTINUOUS("centerContinuous"),
-
-    /**
-     * Distributed Horizontal Alignment
-     * 
-     */
     @XmlEnumValue("distributed")
     DISTRIBUTED("distributed");
     private final String value;

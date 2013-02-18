@@ -16,6 +16,27 @@
     version="1.0"
         exclude-result-prefixes="java w a o v WX aml w10 pkg wp pic r">	
 
+  <!-- 
+    Copyright 200?-2012, Plutext Pty Ltd.
+    
+    This file is part of docx4j.
+
+    docx4j is licensed under the Apache License, Version 2.0 (the "License"); 
+    you may not use this file except in compliance with the License. 
+
+    You may obtain a copy of the License at 
+
+        http://www.apache.org/licenses/LICENSE-2.0 
+
+    Unless required by applicable law or agreed to in writing, software 
+    distributed under the License is distributed on an "AS IS" BASIS, 
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+    See the License for the specific language governing permissions and 
+    limitations under the License.
+
+  -->
+        
+
 <!-- =======================================
 
 	 This is an XSLT to convert WordML2FO.
@@ -60,9 +81,8 @@
 <!--  indent="no" gives a better result for things like subscripts, because it stops
       the user-agent from replacing a carriage return in the XSL FO with a space in the output. -->
 
-<xsl:param name="wmlPackage"/> <!-- select="'passed in'"-->	
-<xsl:param name="modelStates"/> <!-- select="'passed in'"-->	
-<xsl:param name="imageHandler"/>
+
+<xsl:param name="conversionContext"/> <!-- select="'passed in'"-->	
    
 <!-- Used in extension function for mapping fonts --> 		
 <xsl:param name="substituterInstance"/> <!-- select="'passed in'"-->	
@@ -97,7 +117,7 @@
 		<fo:root>
 
 		  	<xsl:copy-of select="java:org.docx4j.convert.out.pdf.viaXSLFO.LayoutMasterSetBuilder.getLayoutMasterSetFragment( 
-		  		$wmlPackage)" />
+		  		$conversionContext)" />
 		  	<!--  creates something like
 		  	
 					  <layout-master-set xmlns="http://www.w3.org/1999/XSL/Format">
@@ -127,12 +147,14 @@
 
 
 	<xsl:template match="section">
+			<xsl:variable name="dummy"
+				select="java:org.docx4j.convert.out.Converter.moveNextSection($conversionContext)" />
 	
 			<xsl:variable name="pageNumberFormat" 
-				select="java:org.docx4j.convert.out.pdf.viaXSLFO.Conversion.getPageNumberFormat($wmlPackage, position())" />
+				select="java:org.docx4j.convert.out.pdf.viaXSLFO.Conversion.getPageNumberFormat($conversionContext)" />
 	
 			<xsl:variable name="pageNumberInitial" 
-				select="java:org.docx4j.convert.out.pdf.viaXSLFO.Conversion.getPageNumberInitial($wmlPackage, position())" />
+				select="java:org.docx4j.convert.out.pdf.viaXSLFO.Conversion.getPageNumberInitial($conversionContext)" />
 
 			<!-- start page-sequence
 				here comes the text (contained in flow objects)
@@ -145,129 +167,102 @@
 
 				<!--  First Page Header -->
 				<xsl:if
-					test="java:org.docx4j.model.structure.HeaderFooterPolicy.hasFirstHeader($wmlPackage, position() )">
+					test="java:org.docx4j.convert.out.Converter.hasFirstHeader($conversionContext)">
 					
 					<xsl:variable name="partname" 
-						select="java:org.docx4j.model.structure.HeaderFooterPolicy.inFirstHeader($wmlPackage, $modelStates, position())" />
+						select="java:org.docx4j.convert.out.Converter.inFirstHeader($conversionContext)" />
 					
 					<fo:static-content
 						flow-name="xsl-region-before-firstpage">
 
 						<xsl:apply-templates
-							select="java:org.docx4j.model.structure.HeaderFooterPolicy.getFirstHeader($wmlPackage, position())" />
+							select="java:org.docx4j.convert.out.Converter.getFirstHeader($conversionContext)" />
 
 					</fo:static-content>
 				</xsl:if>
+				
 				<!--  First Page Footer -->
 				<xsl:if
-					test="java:org.docx4j.model.structure.HeaderFooterPolicy.hasFirstFooter($wmlPackage, position() )">
+					test="java:org.docx4j.convert.out.Converter.hasFirstFooter($conversionContext)">
 
 					<xsl:variable name="partname" 
-						select="java:org.docx4j.model.structure.HeaderFooterPolicy.inFirstFooter($wmlPackage, $modelStates, position() )" />
+						select="java:org.docx4j.convert.out.Converter.inFirstFooter($conversionContext)" />
 
 					<fo:static-content
 						flow-name="xsl-region-after-firstpage">
 						<xsl:apply-templates
-							select="java:org.docx4j.model.structure.HeaderFooterPolicy.getFirstFooter($wmlPackage, position() )" />
+							select="java:org.docx4j.convert.out.Converter.getFirstFooter($conversionContext)" />
 					</fo:static-content>
 				</xsl:if>
 
-			<xsl:choose>
-			
-				<xsl:when test="java:org.docx4j.model.structure.HeaderFooterPolicy.hasDefaultHeaderOrFooter($wmlPackage, position() )">
-							<xsl:if
-								test="java:org.docx4j.model.structure.HeaderFooterPolicy.hasDefaultHeader($wmlPackage, position() )">
-								
-								<xsl:variable name="partname" 
-									select="java:org.docx4j.model.structure.HeaderFooterPolicy.inDefaultHeader($wmlPackage, $modelStates, position() )" />
-								
-								<fo:static-content
-									flow-name="xsl-region-before-default">
-									<xsl:apply-templates
-										select="java:org.docx4j.model.structure.HeaderFooterPolicy.getDefaultHeader($wmlPackage, position() )" />
-								</fo:static-content>
-							</xsl:if>
-							<xsl:if
-								test="java:org.docx4j.model.structure.HeaderFooterPolicy.hasDefaultFooter($wmlPackage, position() )">
-								
-								<xsl:variable name="partname" 
-									select="java:org.docx4j.model.structure.HeaderFooterPolicy.inDefaultFooter($wmlPackage, $modelStates, position() )" />
-								
-								<fo:static-content
-									flow-name="xsl-region-after-default">
-									<xsl:apply-templates
-										select="java:org.docx4j.model.structure.HeaderFooterPolicy.getDefaultFooter($wmlPackage, position() )" />
-								</fo:static-content>
-							</xsl:if>
-							
-							<xsl:if
-								test="java:org.docx4j.openpackaging.parts.WordprocessingML.MainDocumentPart.hasFootnotesPart($wmlPackage)">
-								<fo:static-content flow-name="xsl-footnote-separator">
-								    <fo:block>
-								      <fo:leader leader-pattern="rule"
-								                 leader-length="100%"
-								                 rule-style="solid"
-								                 rule-thickness="0.5pt"/>
-								    </fo:block>
-								  </fo:static-content>				
-									</xsl:if>
-				</xsl:when>
-				
-				<xsl:otherwise>
-							<xsl:if
-								test="java:org.docx4j.model.structure.HeaderFooterPolicy.hasEvenHeader($wmlPackage, position() )">
-								
-								<xsl:variable name="partname" 
-									select="java:org.docx4j.model.structure.HeaderFooterPolicy.inEvenHeader($wmlPackage, $modelStates, position() )" />
-								
-								<fo:static-content
-									flow-name="xsl-region-before-evenpage">
-									<xsl:apply-templates
-										select="java:org.docx4j.model.structure.HeaderFooterPolicy.getEvenHeader($wmlPackage, position() )" />
-								</fo:static-content>
-							</xsl:if>
-							<xsl:if
-								test="java:org.docx4j.model.structure.HeaderFooterPolicy.hasEvenFooter($wmlPackage, position() )">
-								
-								<xsl:variable name="partname" 
-									select="java:org.docx4j.model.structure.HeaderFooterPolicy.inEvenFooter($wmlPackage, $modelStates, position() )" />
-								
-								<fo:static-content
-									flow-name="xsl-region-after-evenpage">
-									<xsl:apply-templates
-										select="java:org.docx4j.model.structure.HeaderFooterPolicy.getEvenFooter($wmlPackage, position() )" />
-								</fo:static-content>
-							</xsl:if>
-			<!-- 				
-							<xsl:if
-								test="java:org.docx4j.model.structure.HeaderFooterPolicy.hasOddHeader($wmlPackage, position() )">
-								
-								<xsl:variable name="partname" 
-									select="java:org.docx4j.model.structure.HeaderFooterPolicy.inOddHeader($wmlPackage, $modelStates, position() )" />
-								
-								<fo:static-content
-									flow-name="xsl-region-before-default">
-									<xsl:apply-templates
-										select="java:org.docx4j.model.structure.HeaderFooterPolicy.getOddHeader($wmlPackage, position() )" />
-								</fo:static-content>
-							</xsl:if>				
-							<xsl:if
-								test="java:org.docx4j.model.structure.HeaderFooterPolicy.hasOddFooter($wmlPackage, position() )">
-								
-								<xsl:variable name="partname" 
-									select="java:org.docx4j.model.structure.HeaderFooterPolicy.inOddFooter($wmlPackage, $modelStates, position() )" />
-								
-								<fo:static-content
-									flow-name="xsl-region-after-default">
-									<xsl:apply-templates
-										select="java:org.docx4j.model.structure.HeaderFooterPolicy.getOddFooter($wmlPackage, position() )" />
-								</fo:static-content>
-							</xsl:if>
-			 -->				
-				
-				</xsl:otherwise>
-			</xsl:choose>
+				<!--  Default/Odd Page Header -->
+				<xsl:if
+					test="java:org.docx4j.convert.out.Converter.hasDefaultHeader($conversionContext)">
+					
+					<xsl:variable name="partname" 
+						select="java:org.docx4j.convert.out.Converter.inDefaultHeader($conversionContext)" />
+					
+					<fo:static-content
+						flow-name="xsl-region-before-default">
+						<xsl:apply-templates
+							select="java:org.docx4j.convert.out.Converter.getDefaultHeader($conversionContext)" />
+					</fo:static-content>
+				</xsl:if>
 
+				<!--  Default/Odd Page Footer -->
+				<xsl:if
+					test="java:org.docx4j.convert.out.Converter.hasDefaultFooter($conversionContext)">
+					
+					<xsl:variable name="partname" 
+						select="java:org.docx4j.convert.out.Converter.inDefaultFooter($conversionContext)" />
+					
+					<fo:static-content
+						flow-name="xsl-region-after-default">
+						<xsl:apply-templates
+							select="java:org.docx4j.convert.out.Converter.getDefaultFooter($conversionContext)" />
+					</fo:static-content>
+				</xsl:if>
+							
+				<!--  Footnotes Part -->
+				<xsl:if
+					test="java:org.docx4j.convert.out.Converter.hasFootnotesPart($conversionContext)">
+					<fo:static-content flow-name="xsl-footnote-separator">
+					    <fo:block>
+					      <fo:leader leader-pattern="rule"
+					                 leader-length="100%"
+					                 rule-style="solid"
+					                 rule-thickness="0.5pt"/>
+					    </fo:block>
+					  </fo:static-content>				
+				</xsl:if>
+				
+				<!--  Even Page Header -->
+				<xsl:if
+					test="java:org.docx4j.convert.out.Converter.hasEvenHeader($conversionContext)">
+					
+					<xsl:variable name="partname" 
+						select="java:org.docx4j.convert.out.Converter.inEvenHeader($conversionContext)" />
+					
+					<fo:static-content
+						flow-name="xsl-region-before-evenpage">
+						<xsl:apply-templates
+							select="java:org.docx4j.convert.out.Converter.getEvenHeader($conversionContext)" />
+					</fo:static-content>
+				</xsl:if>
+				
+				<!--  Even Page Footer -->
+				<xsl:if
+					test="java:org.docx4j.convert.out.Converter.hasEvenFooter($conversionContext)">
+					
+					<xsl:variable name="partname" 
+						select="java:org.docx4j.convert.out.Converter.inEvenFooter($conversionContext)" />
+					
+					<fo:static-content
+						flow-name="xsl-region-after-evenpage">
+						<xsl:apply-templates
+							select="java:org.docx4j.convert.out.Converter.getEvenFooter($conversionContext)" />
+					</fo:static-content>
+				</xsl:if>
 
 				<!-- start fo:flow
 					each flow is targeted
@@ -284,11 +279,11 @@
 				<fo:flow flow-name="xsl-region-body">
 
 					<xsl:variable name="partname" 
-						select="java:org.docx4j.convert.out.pdf.viaXSLFO.PartTracker.inMainDocumentPart($wmlPackage, $modelStates)" />
+						select="java:org.docx4j.convert.out.Converter.setCurrentPartMainDocument($conversionContext)" />
 
 					<!--  Info -->
 					<xsl:copy-of 
-						select="java:org.docx4j.convert.out.pdf.viaXSLFO.Conversion.message('TO HIDE THESE MESSAGES, TURN OFF log4j debug level logging for org.docx4j.convert.out.pdf.viaXSLFO ' )" />  	  		
+						select="java:org.docx4j.convert.out.Converter.message($conversionContext, 'TO HIDE THESE MESSAGES, TURN OFF log4j debug level logging for org.docx4j.convert.out.Converter ' )" />  	  		
 
 					<!--<xsl:apply-templates select="w:body/*" />-->
 					<xsl:apply-templates select="*" />
@@ -296,14 +291,14 @@
 				  	<xsl:call-template name="pretty-print-block"/>
 
 					<xsl:if
-						test="java:org.docx4j.openpackaging.parts.WordprocessingML.MainDocumentPart.hasEndnotesPart($wmlPackage)">
+						test="java:org.docx4j.convert.out.Converter.hasEndnotesPart($conversionContext)">
 						
 				        <fo:block space-before="44pt" font-weight="bold" font-size="14pt">
 				          <xsl:text>Endnotes</xsl:text>
 				        </fo:block>
 						
 						<xsl:apply-templates
-								select="java:org.docx4j.openpackaging.parts.WordprocessingML.MainDocumentPart.getEndnotes($wmlPackage)" />
+								select="java:org.docx4j.convert.out.Converter.getEndnotes($conversionContext)" />
 					</xsl:if>
 
 				  	<xsl:call-template name="pretty-print-block"/>
@@ -340,7 +335,7 @@
 		<xsl:variable name="pStyleVal" select="string( w:pPr/w:pStyle/@w:val )" />  	
 
 	  	<xsl:copy-of select="java:org.docx4j.convert.out.pdf.viaXSLFO.Conversion.createBlockForPPr( 
-  			$wmlPackage, $pPrNode, $pStyleVal, $childResults)" />
+  			$conversionContext, $pPrNode, $pStyleVal, $childResults)" />
 
 		
   </xsl:template>
@@ -350,7 +345,7 @@
   <xsl:template match="w:r">
   
   	<xsl:choose>
-  		<xsl:when test="java:org.docx4j.convert.out.pdf.viaXSLFO.InField.getState($modelStates)" >
+  		<xsl:when test="java:org.docx4j.convert.out.pdf.viaXSLFO.Conversion.inFieldGetState($conversionContext)" >
   			<!-- in a field, so ignore, unless this run contains a fldChar or instrText -->
   			
 		  	<xsl:if test="w:fldChar"><xsl:apply-templates/></xsl:if>
@@ -373,7 +368,7 @@
 					<xsl:variable name="rPrNode" select="w:rPr" />  	
 	
 				  	<xsl:copy-of select="java:org.docx4j.convert.out.pdf.viaXSLFO.Conversion.createBlockForRPr( 
-				  		$wmlPackage, $pPrNode, $rPrNode, $childResults)" />
+				  		$conversionContext, $pPrNode, $rPrNode, $childResults)" />
 	  		
 			  	</xsl:when>
 	  			<xsl:otherwise>
@@ -428,7 +423,7 @@
 					<xsl:variable name="pStyleVal" select="string( w:pPr/w:pStyle/@w:val )" />  	
 
 			  		<xsl:copy-of select="java:org.docx4j.convert.out.pdf.viaXSLFO.Conversion.createBlockForSdt( 
-	  					$wmlPackage, $pPrNode, $pStyleVal, $childResults, string(./w:sdtPr/w:tag/@w:val))" />
+	  					$conversionContext, $pPrNode, $pStyleVal, $childResults, string(./w:sdtPr/w:tag/@w:val))" />
   				
   				</xsl:when>
   				<xsl:when test="./w:sdtContent/w:sdt/w:sdtContent/w:p[1]/w:pPr">
@@ -438,7 +433,7 @@
 					<xsl:variable name="pStyleVal" select="string( w:pPr/w:pStyle/@w:val )" />  	
 
 			  		<xsl:copy-of select="java:org.docx4j.convert.out.pdf.viaXSLFO.Conversion.createBlockForSdt( 
-	  					$wmlPackage, $pPrNode, $pStyleVal, $childResults, string(./w:sdtPr/w:tag/@w:val))" />
+	  					$conversionContext, $pPrNode, $pStyleVal, $childResults, string(./w:sdtPr/w:tag/@w:val))" />
   				
   				</xsl:when>
   				<xsl:when test="./w:sdtPr/w:rPr">
@@ -446,7 +441,7 @@
 					<xsl:variable name="rPrNode" select="./w:sdtPr/w:rPr" />
 
 			  		<xsl:copy-of select="java:org.docx4j.convert.out.pdf.viaXSLFO.Conversion.createInlineForSdt( 
-	  					$wmlPackage, $rPrNode, $childResults, string(./w:sdtPr/w:tag/@w:val))" />
+	  					$conversionContext, $rPrNode, $childResults, string(./w:sdtPr/w:tag/@w:val))" />
   				
   				</xsl:when>  				
 		  		<xsl:otherwise>
@@ -486,13 +481,13 @@
   		<xsl:when test="./a:graphic/a:graphicData/pic:pic">
   		
 		   	<xsl:copy-of select="java:org.docx4j.model.images.WordXmlPictureE20.createXslFoImgE20( 
-		   			$wmlPackage, $imageHandler,
-		  			$wpinline, $modelStates)" />  		
+		   			$conversionContext,
+		  			$wpinline)" />  		
   		</xsl:when>
   		<xsl:otherwise>
   		
 			<xsl:copy-of 
-				select="java:org.docx4j.convert.out.pdf.viaXSLFO.Conversion.notImplemented(., ' without pic:pic ' )" />  	  		
+				select="java:org.docx4j.convert.out.Converter.notImplemented($conversionContext,., ' without pic:pic ' )" />  	  		
   		</xsl:otherwise>  	
   	</xsl:choose>
   	
@@ -508,13 +503,13 @@
 	  	<xsl:variable name="wpict" select="."/>
 		  	
 		  	<xsl:copy-of select="java:org.docx4j.model.images.WordXmlPictureE10.createXslFoImgE10( 
-		  	$wmlPackage, $imageHandler,
-  			$wpict, $modelStates)" />
+		  	$conversionContext,
+  			$wpict)" />
 		</xsl:when>
 		<xsl:otherwise>
 			<xsl:comment>TODO: handle w:pict containing other than ./v:shape/v:imagedata</xsl:comment>
 			<xsl:copy-of 
-				select="java:org.docx4j.convert.out.pdf.viaXSLFO.Conversion.notImplemented(., ' without v:imagedata ' )" />  	  		
+				select="java:org.docx4j.convert.out.Converter.notImplemented($conversionContext,., ' without v:imagedata ' )" />  	  		
 		</xsl:otherwise>
 	</xsl:choose>  			
 
@@ -554,7 +549,7 @@
 		<xsl:variable name="tblNode" select="." />  			
 
 		<!--  Create the XSL FO table in Java -->
-	  	<xsl:copy-of select="java:org.docx4j.convert.out.Converter.toNode($tblNode, $childResults, $modelStates)"/>	  		
+	  	<xsl:copy-of select="java:org.docx4j.convert.out.Converter.toNode($conversionContext,$tblNode, $childResults)"/>	  		
 	  			  		
   </xsl:template>
   
@@ -612,8 +607,8 @@
 
 	<xsl:variable name="symNode" select="." />  			
 
-     <xsl:copy-of select="java:org.docx4j.convert.out.Converter.toNode($symNode, 
-			$childResults, $modelStates)" />
+     <xsl:copy-of select="java:org.docx4j.convert.out.Converter.toNode($conversionContext,$symNode, 
+			$childResults)" />
   		  			
 </xsl:template>
 
@@ -673,8 +668,8 @@
 	<xsl:variable name="relId"><xsl:value-of select="string(@r:id)"/></xsl:variable>
       
 	<xsl:variable name="hTemp" 
-		select="java:org.docx4j.convert.out.html.AbstractHtmlExporter.resolveHref(
-		             $wmlPackage, $relId )" />
+		select="java:org.docx4j.convert.out.Converter.resolveHref(
+		             $conversionContext, $relId )" />
 		                   
       <xsl:variable name="href">
           <xsl:value-of select="$hTemp"/>
@@ -709,6 +704,10 @@
 <!-- <w:bookmarkStart w:id="0" w:name="mybm"/>  -->
 <xsl:template match="w:bookmarkStart" >
         <xsl:choose>
+          <xsl:when test="preceding-sibling::w:tr or following-sibling::w:tr">
+          	<!-- Need to ignore this, since otherwise it is mistaken 
+          	     for a table row in TableModel's getTc -->
+          </xsl:when>          
           <xsl:when test="ancestor::w:p"><!--  TODO or other block element -->
 			<fo:inline id="{@w:name}"/>
           </xsl:when>
@@ -731,12 +730,14 @@
         </xsl:choose>
 </xsl:template>
 
+<xsl:template match="w:bookmarkStart[@w:name='_GoBack']" />
+
 <xsl:template match="w:bookmarkEnd" />
 
 
   <xsl:template match="w:footnoteReference">
 
-	<xsl:variable name="fn"><xsl:value-of select="java:org.docx4j.convert.out.html.HtmlExporterNG2.getNextFootnoteNumber($modelStates)"/></xsl:variable>
+	<xsl:variable name="fn"><xsl:value-of select="java:org.docx4j.convert.out.Converter.getNextFootnoteNumber($conversionContext)"/></xsl:variable>
 	<xsl:variable name="id"><xsl:value-of select="string(@w:id)"/></xsl:variable>
 	  
 	<fo:footnote>
@@ -754,7 +755,7 @@
 	          </fo:list-item-label>
 	          <fo:list-item-body start-indent="body-start()">
 	            <fo:block><xsl:apply-templates
-					select="java:org.docx4j.openpackaging.parts.WordprocessingML.MainDocumentPart.getFootnote($wmlPackage, $id)" /></fo:block>
+					select="java:org.docx4j.convert.out.Converter.getFootnote($conversionContext, $id)" /></fo:block>
 	          </fo:list-item-body>
 	        </fo:list-item>
 	      </fo:list-block>
@@ -773,7 +774,7 @@
 
 
   <xsl:template match="w:endnoteReference ">  
-    <xsl:variable name="fn"><xsl:value-of select="java:org.docx4j.convert.out.html.HtmlExporterNG2.getNextEndnoteNumber($modelStates)"/></xsl:variable>
+    <xsl:variable name="fn"><xsl:value-of select="java:org.docx4j.convert.out.Converter.getNextEndnoteNumber($conversionContext)"/></xsl:variable>
     <fo:inline baseline-shift="super"
 	               font-size="smaller"><xsl:value-of select="$fn"/></fo:inline>
   </xsl:template>
@@ -805,12 +806,12 @@
 				
 		<xsl:copy-of 
 			select="java:org.docx4j.convert.out.pdf.viaXSLFO.Conversion.createBlockForFldSimple(
-		  		$wmlPackage, ., $childResults)" />
+		  		$conversionContext, ., $childResults)" />
   </xsl:template>
   
   <xsl:template match="w:fldChar" >
 		<xsl:copy-of 
-			select="java:org.docx4j.convert.out.pdf.viaXSLFO.InField.updateState($modelStates, .)" />  	
+			select="java:org.docx4j.convert.out.pdf.viaXSLFO.Conversion.inFieldUpdateState($conversionContext, .)" />  	
   </xsl:template>
 
   <xsl:template match="w:instrText" >
@@ -820,7 +821,7 @@
 			
 		<xsl:copy-of 
 			select="java:org.docx4j.convert.out.pdf.viaXSLFO.Conversion.createBlockForInstrText(
-		  		$wmlPackage, ., $childResults)" />
+		  		$conversionContext, ., $childResults)" />
   </xsl:template>
   
    <xsl:template match="w:customXml">
@@ -835,7 +836,7 @@
 
   <xsl:template match="*">
 		<xsl:copy-of 
-			select="java:org.docx4j.convert.out.pdf.viaXSLFO.Conversion.notImplemented(., '' )" />  	
+			select="java:org.docx4j.convert.out.Converter.notImplemented($conversionContext,., '' )" />  	
   </xsl:template>
 
 </xsl:stylesheet>

@@ -1,7 +1,7 @@
 /*
- *  Copyright 2010, Plutext Pty Ltd.
+ *  Copyright 2010-2013, Plutext Pty Ltd.
  *   
- *  This file is part of docx4j.
+ *  This file is part of xlsx4j, a component of docx4j.
 
     docx4j is licensed under the Apache License, Version 2.0 (the "License"); 
     you may not use this file except in compliance with the License. 
@@ -17,16 +17,17 @@
     limitations under the License.
 
  */
-
-
 package org.xlsx4j.sml;
 
+import javax.xml.bind.Unmarshaller;
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlSchemaType;
+import javax.xml.bind.annotation.XmlTransient;
 import javax.xml.bind.annotation.XmlType;
+import org.jvnet.jaxb2_commons.ppp.Child;
 
 
 /**
@@ -65,31 +66,34 @@ import javax.xml.bind.annotation.XmlType;
     "sortState",
     "extLst"
 })
-public class CTQueryTableRefresh {
+public class CTQueryTableRefresh implements Child
+{
 
     @XmlElement(required = true)
     protected CTQueryTableFields queryTableFields;
     protected CTQueryTableDeletedFields queryTableDeletedFields;
     protected CTSortState sortState;
     protected CTExtensionList extLst;
-    @XmlAttribute
+    @XmlAttribute(name = "preserveSortFilterLayout")
     protected Boolean preserveSortFilterLayout;
-    @XmlAttribute
+    @XmlAttribute(name = "fieldIdWrapped")
     protected Boolean fieldIdWrapped;
-    @XmlAttribute
+    @XmlAttribute(name = "headersInLastRefresh")
     protected Boolean headersInLastRefresh;
-    @XmlAttribute
+    @XmlAttribute(name = "minimumVersion")
     @XmlSchemaType(name = "unsignedByte")
     protected Short minimumVersion;
-    @XmlAttribute
+    @XmlAttribute(name = "nextId")
     @XmlSchemaType(name = "unsignedInt")
     protected Long nextId;
-    @XmlAttribute
+    @XmlAttribute(name = "unboundColumnsLeft")
     @XmlSchemaType(name = "unsignedInt")
     protected Long unboundColumnsLeft;
-    @XmlAttribute
+    @XmlAttribute(name = "unboundColumnsRight")
     @XmlSchemaType(name = "unsignedInt")
     protected Long unboundColumnsRight;
+    @XmlTransient
+    private Object parent;
 
     /**
      * Gets the value of the queryTableFields property.
@@ -381,6 +385,32 @@ public class CTQueryTableRefresh {
      */
     public void setUnboundColumnsRight(Long value) {
         this.unboundColumnsRight = value;
+    }
+
+    /**
+     * Gets the parent object in the object tree representing the unmarshalled xml document.
+     * 
+     * @return
+     *     The parent object.
+     */
+    public Object getParent() {
+        return this.parent;
+    }
+
+    public void setParent(Object parent) {
+        this.parent = parent;
+    }
+
+    /**
+     * This method is invoked by the JAXB implementation on each instance when unmarshalling completes.
+     * 
+     * @param parent
+     *     The parent object in the object tree.
+     * @param unmarshaller
+     *     The unmarshaller that generated the instance.
+     */
+    public void afterUnmarshal(Unmarshaller unmarshaller, Object parent) {
+        setParent(parent);
     }
 
 }

@@ -1,7 +1,7 @@
 /*
- *  Copyright 2010, Plutext Pty Ltd.
+ *  Copyright 2010-2013, Plutext Pty Ltd.
  *   
- *  This file is part of docx4j.
+ *  This file is part of xlsx4j, a component of docx4j.
 
     docx4j is licensed under the Apache License, Version 2.0 (the "License"); 
     you may not use this file except in compliance with the License. 
@@ -17,8 +17,6 @@
     limitations under the License.
 
  */
-
-
 package org.xlsx4j.sml;
 
 import javax.xml.bind.annotation.XmlEnum;
@@ -58,109 +56,34 @@ import javax.xml.bind.annotation.XmlType;
 @XmlEnum
 public enum STItemType {
 
-
-    /**
-     * Data
-     * 
-     */
     @XmlEnumValue("data")
     DATA("data"),
-
-    /**
-     * Default
-     * 
-     */
     @XmlEnumValue("default")
     DEFAULT("default"),
-
-    /**
-     * Sum
-     * 
-     */
     @XmlEnumValue("sum")
     SUM("sum"),
-
-    /**
-     * CountA
-     * 
-     */
     @XmlEnumValue("countA")
     COUNT_A("countA"),
-
-    /**
-     * Average
-     * 
-     */
     @XmlEnumValue("avg")
     AVG("avg"),
-
-    /**
-     * Max
-     * 
-     */
     @XmlEnumValue("max")
     MAX("max"),
-
-    /**
-     * Min
-     * 
-     */
     @XmlEnumValue("min")
     MIN("min"),
-
-    /**
-     * Product
-     * 
-     */
     @XmlEnumValue("product")
     PRODUCT("product"),
-
-    /**
-     * Count
-     * 
-     */
     @XmlEnumValue("count")
     COUNT("count"),
-
-    /**
-     * stdDev
-     * 
-     */
     @XmlEnumValue("stdDev")
     STD_DEV("stdDev"),
-
-    /**
-     * StdDevP
-     * 
-     */
     @XmlEnumValue("stdDevP")
     STD_DEV_P("stdDevP"),
-
-    /**
-     * Var
-     * 
-     */
     @XmlEnumValue("var")
     VAR("var"),
-
-    /**
-     * VarP
-     * 
-     */
     @XmlEnumValue("varP")
     VAR_P("varP"),
-
-    /**
-     * Grand Total Item
-     * 
-     */
     @XmlEnumValue("grand")
     GRAND("grand"),
-
-    /**
-     * Blank Pivot Item
-     * 
-     */
     @XmlEnumValue("blank")
     BLANK("blank");
     private final String value;

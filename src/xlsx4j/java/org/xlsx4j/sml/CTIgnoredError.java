@@ -1,7 +1,7 @@
 /*
- *  Copyright 2010, Plutext Pty Ltd.
+ *  Copyright 2010-2013, Plutext Pty Ltd.
  *   
- *  This file is part of docx4j.
+ *  This file is part of xlsx4j, a component of docx4j.
 
     docx4j is licensed under the Apache License, Version 2.0 (the "License"); 
     you may not use this file except in compliance with the License. 
@@ -17,16 +17,17 @@
     limitations under the License.
 
  */
-
-
 package org.xlsx4j.sml;
 
 import java.util.ArrayList;
 import java.util.List;
+import javax.xml.bind.Unmarshaller;
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlAttribute;
+import javax.xml.bind.annotation.XmlTransient;
 import javax.xml.bind.annotation.XmlType;
+import org.jvnet.jaxb2_commons.ppp.Child;
 
 
 /**
@@ -57,28 +58,31 @@ import javax.xml.bind.annotation.XmlType;
  */
 @XmlAccessorType(XmlAccessType.FIELD)
 @XmlType(name = "CT_IgnoredError")
-public class CTIgnoredError {
+public class CTIgnoredError implements Child
+{
 
-    @XmlAttribute(required = true)
+    @XmlAttribute(name = "sqref", required = true)
     protected List<String> sqref;
-    @XmlAttribute
+    @XmlAttribute(name = "evalError")
     protected Boolean evalError;
-    @XmlAttribute
+    @XmlAttribute(name = "twoDigitTextYear")
     protected Boolean twoDigitTextYear;
-    @XmlAttribute
+    @XmlAttribute(name = "numberStoredAsText")
     protected Boolean numberStoredAsText;
-    @XmlAttribute
+    @XmlAttribute(name = "formula")
     protected Boolean formula;
-    @XmlAttribute
+    @XmlAttribute(name = "formulaRange")
     protected Boolean formulaRange;
-    @XmlAttribute
+    @XmlAttribute(name = "unlockedFormula")
     protected Boolean unlockedFormula;
-    @XmlAttribute
+    @XmlAttribute(name = "emptyCellReference")
     protected Boolean emptyCellReference;
-    @XmlAttribute
+    @XmlAttribute(name = "listDataValidation")
     protected Boolean listDataValidation;
-    @XmlAttribute
+    @XmlAttribute(name = "calculatedColumn")
     protected Boolean calculatedColumn;
+    @XmlTransient
+    private Object parent;
 
     /**
      * Gets the value of the sqref property.
@@ -359,6 +363,32 @@ public class CTIgnoredError {
      */
     public void setCalculatedColumn(Boolean value) {
         this.calculatedColumn = value;
+    }
+
+    /**
+     * Gets the parent object in the object tree representing the unmarshalled xml document.
+     * 
+     * @return
+     *     The parent object.
+     */
+    public Object getParent() {
+        return this.parent;
+    }
+
+    public void setParent(Object parent) {
+        this.parent = parent;
+    }
+
+    /**
+     * This method is invoked by the JAXB implementation on each instance when unmarshalling completes.
+     * 
+     * @param parent
+     *     The parent object in the object tree.
+     * @param unmarshaller
+     *     The unmarshaller that generated the instance.
+     */
+    public void afterUnmarshal(Unmarshaller unmarshaller, Object parent) {
+        setParent(parent);
     }
 
 }

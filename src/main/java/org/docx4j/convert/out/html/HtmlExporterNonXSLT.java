@@ -5,13 +5,12 @@ package org.docx4j.convert.out.html;
 
 import java.util.List;
 
-import javax.xml.bind.JAXBContext;
-import javax.xml.transform.TransformerException;
-
 import org.apache.log4j.Logger;
 import org.docx4j.TraversalUtil;
 import org.docx4j.TraversalUtil.CallbackImpl;
 import org.docx4j.XmlUtils;
+import org.docx4j.convert.out.Converter;
+import org.docx4j.convert.out.html.AbstractHtmlExporter.HtmlSettings;
 import org.docx4j.model.images.ConversionImageHandler;
 import org.docx4j.model.images.WordXmlPictureE10;
 import org.docx4j.model.images.WordXmlPictureE20;
@@ -20,7 +19,6 @@ import org.docx4j.model.styles.StyleTree;
 import org.docx4j.model.styles.StyleTree.AugmentedStyle;
 import org.docx4j.model.styles.Tree;
 import org.docx4j.model.table.TableModel;
-import org.docx4j.model.table.TableModel.TableModelTransformState;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
 import org.docx4j.openpackaging.parts.relationships.Namespaces;
 import org.docx4j.wml.P;
@@ -28,7 +26,6 @@ import org.docx4j.wml.PPr;
 import org.docx4j.wml.R;
 import org.docx4j.wml.RPr;
 import org.docx4j.wml.Tbl;
-import org.w3c.dom.Attr;
 import org.w3c.dom.DocumentFragment;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -54,34 +51,25 @@ import org.w3c.dom.Node;
 public class HtmlExporterNonXSLT {
 
 	private static Logger log = Logger.getLogger(HtmlExporterNonXSLT.class);
-	
-	public static JAXBContext context = org.docx4j.jaxb.Context.jc;
 
 	protected static String inputfilepath;	
 	protected static String outputfilepath;
+	
+	protected HTMLConversionContextNonXSLT conversionContext = null;
 	
 	org.w3c.dom.Document htmlDoc;
 	Element headEl;
 	Element bodyEl;
 	
-	WordprocessingMLPackage wordMLPackage;
-	StyleTree styleTree;
-	
-	ConversionImageHandler conversionImageHandler;
-	
-	public HtmlExporterNonXSLT(WordprocessingMLPackage wordMLPackage, ConversionImageHandler conversionImageHandler) {
+	public HtmlExporterNonXSLT(WordprocessingMLPackage wordMLPackage, 
+			ConversionImageHandler conversionImageHandler) {
 		
-		this.wordMLPackage = wordMLPackage;
-		this.conversionImageHandler = conversionImageHandler;
-
-    	styleTree = null;
-		try {
-			styleTree = wordMLPackage.getMainDocumentPart().getStyleTree();
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}		
-		
+		HtmlSettings htmlSettings = new HtmlSettings();
+		htmlSettings.setWmlPackage(wordMLPackage);
+		htmlSettings.setImageHandler(conversionImageHandler);
+		//The HtmlExporterNonXSLT seems to ignore header and footers,
+		//therefore the ConversionSectionWrapper can be null
+		conversionContext = new HTMLConversionContextNonXSLT(htmlSettings, null);
 	}
 	
 	/**
@@ -107,21 +95,23 @@ public class HtmlExporterNonXSLT {
 		// css
     	Element styleEl = htmlDoc.createElement("style");
     	headEl.appendChild(styleEl);
-    	styleEl.appendChild(
-    			htmlDoc.createComment(AbstractHtmlExporter.getCssForStyles(wordMLPackage)));		
+    	styleEl.appendChild(htmlDoc.createComment(getCss()));		
 		
     	
-		List blockLevelContent = wordMLPackage.getMainDocumentPart().getContent();
+		List blockLevelContent = conversionContext.getWmlPackage().getMainDocumentPart().getContent();
     	
-		HTMLGenerator htmlGenerator = new HTMLGenerator();
+		HTMLGenerator htmlGenerator = new HTMLGenerator(conversionContext, bodyEl);
 		new TraversalUtil(blockLevelContent, htmlGenerator);
 
 		return htmlDoc;
 	}
 	
 	public String getCss() {
-		
-		return AbstractHtmlExporter.getCssForStyles(wordMLPackage);
+		StringBuffer buffer = new StringBuffer();
+		HtmlCssHelper.createCssForStyles(conversionContext.getWmlPackage(), 
+										 conversionContext.getStyleTree(), 
+										 buffer);
+		return buffer.toString();
 	}
 	
 	/**
@@ -143,7 +133,7 @@ public class HtmlExporterNonXSLT {
     	}
     	htmlDoc.appendChild(bodyEl);    	
 		
-		HTMLGenerator htmlGenerator = new HTMLGenerator();
+		HTMLGenerator htmlGenerator = new HTMLGenerator(conversionContext, bodyEl);
 		new TraversalUtil(blockLevelContent, htmlGenerator);
 
 		return htmlDoc;
@@ -160,7 +150,7 @@ public class HtmlExporterNonXSLT {
 					&& pPr.getPStyle().getVal()!=null) {
 
 				pStyleVal = pPr.getPStyle().getVal();						
-				Tree<AugmentedStyle> pTree = styleTree.getParagraphStylesTree();		
+				Tree<AugmentedStyle> pTree = conversionContext.getStyleTree().getParagraphStylesTree();		
 				org.docx4j.model.styles.Node<AugmentedStyle> asn = pTree.get(pStyleVal);
 				currentEl.setAttribute("class", 
 						StyleTree.getHtmlClassAttributeValue(pTree, asn)			
@@ -170,7 +160,7 @@ public class HtmlExporterNonXSLT {
 			// Does our pPr contain anything else?
 			boolean ignoreBorders = true;
 			StringBuffer inlineStyle =  new StringBuffer();
-			AbstractHtmlExporter.createCss(wordMLPackage, pPr, inlineStyle, ignoreBorders);				
+			HtmlCssHelper.createCss(conversionContext.getWmlPackage(), pPr, inlineStyle, ignoreBorders);				
 			if (!inlineStyle.toString().equals("") ) {
 				currentEl.setAttribute("style", inlineStyle.toString() );
 			}
@@ -185,7 +175,7 @@ public class HtmlExporterNonXSLT {
 			}
 			
         	ResultTriple triple = org.docx4j.model.listnumbering.Emulator.getNumber(
-        			wordMLPackage, pStyleVal, numId, levelId);   
+        			conversionContext.getWmlPackage(), pStyleVal, numId, levelId);   
         	
 
 			if (triple==null) {
@@ -213,7 +203,7 @@ public class HtmlExporterNonXSLT {
 		// Set @class	
 		if ( rPr.getRStyle()!=null) {
 			String rStyleVal = rPr.getRStyle().getVal();
-			Tree<AugmentedStyle> cTree = styleTree.getCharacterStylesTree();		
+			Tree<AugmentedStyle> cTree = conversionContext.getStyleTree().getCharacterStylesTree();		
 			org.docx4j.model.styles.Node<AugmentedStyle> asn = cTree.get(rStyleVal);
 			if (asn==null) {
 				log.warn("No style node for: " + rStyleVal);
@@ -226,31 +216,47 @@ public class HtmlExporterNonXSLT {
 		
 		// Does our rPr contain anything else?
 		StringBuffer inlineStyle =  new StringBuffer();
-		AbstractHtmlExporter.createCss(wordMLPackage, rPr, inlineStyle);				
+		HtmlCssHelper.createCss(conversionContext.getWmlPackage(), rPr, inlineStyle);				
 		if (!inlineStyle.toString().equals("") ) {
 			spanEl.setAttribute("style", inlineStyle.toString() );
 		}
 			
 	}
 	
-	TableModelTransformState tableModelTransformState = new TableModelTransformState();
-	
     class HTMLGenerator extends CallbackImpl {
+    	HTMLConversionContextNonXSLT conversionContext = null;
+    	
+    	Node blockContext;
     	
     	Element currentP; 
     	Element currentSpan;
     	
+		Element tr;		
+		Element tc;
+    	
+    	
     	// E20 image
     	Object anchorOrInline;
     	
-    	@Override
+    	
+    	HTMLGenerator(HTMLConversionContextNonXSLT conversionContext, Node blockContext) {
+			super();
+			this.conversionContext = conversionContext;
+			this.blockContext = blockContext;
+		}
+
+		@Override
 		public List<Object> apply(Object o) {
 			
 			if (o instanceof P) {
 				
 				currentP = htmlDoc.createElement("p");
 				currentSpan = null;
-				bodyEl.appendChild( currentP  );
+				if (tc!=null) {
+					tc.appendChild( currentP  );
+				} else {
+					blockContext.appendChild( currentP  );					
+				}
 				
 				PPr pPr = ((P)o).getPPr();
 				handlePPr(pPr, currentP);
@@ -262,7 +268,12 @@ public class HtmlExporterNonXSLT {
 				if ( rPr!=null ) {
 					// Convert run to span
 					Element spanEl = htmlDoc.createElement("span");
-					currentP.appendChild( spanEl  );
+					if (currentP==null) {
+						// Hyperlink special case
+						blockContext.appendChild(spanEl);
+					} else {
+						currentP.appendChild( spanEl  );
+					}
 					currentSpan = spanEl;
 					
 					handleRPr(rPr, currentSpan);
@@ -281,30 +292,47 @@ public class HtmlExporterNonXSLT {
 			} else if (o instanceof org.docx4j.wml.Tbl) {
 
 				Tbl tbl = (org.docx4j.wml.Tbl)o;
-				// To use our existing model, first we need
-				// childResults
-				TableRowTraversor tableRowTraversor = new TableRowTraversor();
-				new TraversalUtil(
-						tbl.getContent(), tableRowTraversor);
+
+				// To use our existing model, first we need childResults.
+				// We get these using a new XSLFOGenerator object.
 				
-//				NodeList childResults = tableRowTraversor.tableFragment.getChildNodes();
+		    	DocumentFragment tableFragment = htmlDoc.createDocumentFragment();
+		    	HTMLGenerator tableRowTraversor = new HTMLGenerator(conversionContext, tableFragment);
+				new TraversalUtil(tbl.getContent(), tableRowTraversor);
 				
-				try {
-					TableModel tm = new TableModel();
-					tm.setWordMLPackage(wordMLPackage);
-					tm.build(tbl, tableRowTraversor.tableFragment);
-					
-					TableWriter tableWriter = new TableWriter();
-					tableWriter.setWordMLPackage(wordMLPackage);
-					Node htmlTable = tableWriter.toNode(tm, tableModelTransformState, htmlDoc);
-					
-					currentP.appendChild(htmlTable);
-					
-				} catch (TransformerException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
+				Node htmlTable = 
+					 conversionContext.getModelRegistry().toNode(
+							 conversionContext, 
+							 tbl, 
+							 TableModel.MODEL_ID, 
+							 tableFragment, 
+							 htmlDoc);
+				
+				if (htmlTable != null) {
+					if (currentP != null) {
+						currentP.appendChild(htmlTable);
+					}
+					else {
+						//in case there isn't a paragraph 
+						blockContext.appendChild(htmlTable);
+					}
 				}
 				
+				currentP=null;
+				currentSpan=null;
+				
+			} else if (o instanceof org.docx4j.wml.Tr) {
+				
+				tr = htmlDoc.createElementNS(Namespaces.NS_WORD12, "tr");
+				blockContext.appendChild(tr);
+				
+			} else if (o instanceof org.docx4j.wml.Tc) {
+				
+				tc = htmlDoc.createElementNS(Namespaces.NS_WORD12, "tc");
+				tr.appendChild(tc);
+				// now the html p content will go temporarily go in w:tc,
+				// which is what we need for our existing table model.
+								
 			} else if (o instanceof org.docx4j.dml.wordprocessingDrawing.Inline
 					|| o instanceof org.docx4j.dml.wordprocessingDrawing.Anchor) {
 				
@@ -319,8 +347,8 @@ public class HtmlExporterNonXSLT {
 	                        <pic:blipFill>
 	                          <a:blip r:embed="rId10" cstate="print"/> */
 				
-				DocumentFragment foreignFragment = WordXmlPictureE20.createHtmlImgE20(wordMLPackage, 
-						conversionImageHandler, anchorOrInline);
+				DocumentFragment foreignFragment = 
+						WordXmlPictureE20.createHtmlImgE20(conversionContext, anchorOrInline);
 				anchorOrInline = null;
 				
 				currentP.appendChild( htmlDoc.importNode(foreignFragment, true) );
@@ -331,10 +359,42 @@ public class HtmlExporterNonXSLT {
 		            <v:imagedata r:id="rId4" o:title=""/>
 		          </v:shape> */
 
-				DocumentFragment foreignFragment = WordXmlPictureE10.createHtmlImgE10(wordMLPackage, 
-						conversionImageHandler, o);
+				DocumentFragment foreignFragment = 
+						WordXmlPictureE10.createHtmlImgE10(conversionContext, o);
 				
 				currentP.appendChild( htmlDoc.importNode(foreignFragment, true) );
+				
+			} else if (o instanceof org.docx4j.wml.P.Hyperlink) {
+				
+				P.Hyperlink hyperlink = (P.Hyperlink)o;
+				
+				Element spanEl = htmlDoc.createElement("a");
+				currentP.appendChild( spanEl  );
+				currentSpan = spanEl;
+								
+				String hTemp = Converter.resolveHref(conversionContext, hyperlink.getId() );
+				String href;
+				// @w:anchor
+				if (hyperlink.getAnchor() != null) {
+					href = hTemp + hyperlink.getAnchor();
+				} else {
+					href = hTemp;
+				}
+				// via XSLT also had @w:bookmark and @w:arbLocation,
+				// but these aren't in the P.Hyperlink object?
+				currentSpan.setAttribute("href", href);										
+				
+				// "Manually" get the contents of the hyperlink.
+				// If we don't do this, it'll be added as a span
+				// outside the hyperlink.
+				// This is a consequence of our simple minded
+				// two level hierarchy (ie div or span)
+		    	DocumentFragment hFragment = htmlDoc.createDocumentFragment();
+		    	HTMLGenerator hTraversor = new HTMLGenerator(conversionContext, hFragment);
+				new TraversalUtil(hyperlink.getContent(), hTraversor);
+				
+				currentSpan.appendChild(hFragment);
+				
 				
 			} else {
 				log.info("Encountered " + o.getClass().getName() );				
@@ -347,6 +407,9 @@ public class HtmlExporterNonXSLT {
 		public boolean shouldTraverse(Object o) {
     		if (o instanceof org.docx4j.wml.Tbl) {
     			return false;
+    		} else if (o instanceof org.docx4j.wml.P.Hyperlink) {
+    			// this is handled separately    			
+    			return false;
     		} else {
     			return true;
     		}
@@ -355,75 +418,6 @@ public class HtmlExporterNonXSLT {
     	
 	}
 
-    class TableRowTraversor extends CallbackImpl {
-
-    	Element currentP; 
-    	Element currentSpan; 
-
-    	DocumentFragment tableFragment = htmlDoc.createDocumentFragment();
-		Element tr;		
-		Element tc;
-		
-    	@Override
-		public List<Object> apply(Object o) {
-			
-			if (o instanceof P) {
-				
-				currentP = htmlDoc.createElement("p");
-				currentSpan = null;
-				tc.appendChild( currentP  );
-				
-				PPr pPr = ((P)o).getPPr();
-				handlePPr(pPr, currentP);
-				
-			} else if (o instanceof org.docx4j.wml.R) {
-				
-				RPr rPr = ((R)o).getRPr();
-
-				if ( rPr!=null ) {
-					// Convert run to span
-					Element spanEl = htmlDoc.createElement("span");
-					currentP.appendChild( spanEl  );
-					currentSpan = spanEl;
-					
-					handleRPr(rPr, currentSpan);
-				}
-								
-			} else if (o instanceof org.docx4j.wml.Text) {
-				
-				if (currentSpan!=null) {
-					currentSpan.appendChild(htmlDoc.createTextNode(
-							((org.docx4j.wml.Text)o).getValue()));
-				} else {
-					currentP.appendChild(htmlDoc.createTextNode(
-							((org.docx4j.wml.Text)o).getValue()));					
-				}
-
-
-			} else if (o instanceof org.docx4j.wml.Tbl) {
-
-				// TODO: haven't considered nested tables
-				
-			} else if (o instanceof org.docx4j.wml.Tr) {
-				
-				tr = htmlDoc.createElementNS(Namespaces.NS_WORD12, "tr");
-				tableFragment.appendChild(tr);
-				
-			} else if (o instanceof org.docx4j.wml.Tc) {
-				
-				tc = htmlDoc.createElementNS(Namespaces.NS_WORD12, "tc");
-				tr.appendChild(tc);
-				// now the html p content will go temporarily go in w:tc,
-				// which is what we need for our existing table model.
-				
-			} else {
-				log.info("Encountered " + o.getClass().getName() );				
-			}
-			
-			return null;
-		}
-    	
-    }
 	
 	/**
 	 * @param args
@@ -432,9 +426,11 @@ public class HtmlExporterNonXSLT {
 
 
 		inputfilepath = System.getProperty("user.dir")
-				+ "/hr.docx";
-//		+ "/sample-docs/word/sample-docx.xml";
+//				+ "/hr.docx";
+//		+ "/sample-docs/word/sample-docx.docx";
 //		+ "/sample-docs/word/2003/word2003-vml.docx";
+//				+ "/table-nested.docx";
+		+ "/hlink.docx";
 
 		WordprocessingMLPackage wordMLPackage = WordprocessingMLPackage
 				.load(new java.io.File(inputfilepath));

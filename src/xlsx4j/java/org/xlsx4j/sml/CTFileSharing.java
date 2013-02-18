@@ -1,7 +1,7 @@
 /*
- *  Copyright 2010, Plutext Pty Ltd.
+ *  Copyright 2010-2013, Plutext Pty Ltd.
  *   
- *  This file is part of docx4j.
+ *  This file is part of xlsx4j, a component of docx4j.
 
     docx4j is licensed under the Apache License, Version 2.0 (the "License"); 
     you may not use this file except in compliance with the License. 
@@ -17,16 +17,18 @@
     limitations under the License.
 
  */
-
-
 package org.xlsx4j.sml;
 
+import javax.xml.bind.Unmarshaller;
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlAttribute;
+import javax.xml.bind.annotation.XmlSchemaType;
+import javax.xml.bind.annotation.XmlTransient;
 import javax.xml.bind.annotation.XmlType;
 import javax.xml.bind.annotation.adapters.HexBinaryAdapter;
 import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
+import org.jvnet.jaxb2_commons.ppp.Child;
 
 
 /**
@@ -39,8 +41,12 @@ import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
  *   &lt;complexContent>
  *     &lt;restriction base="{http://www.w3.org/2001/XMLSchema}anyType">
  *       &lt;attribute name="readOnlyRecommended" type="{http://www.w3.org/2001/XMLSchema}boolean" default="false" />
- *       &lt;attribute name="userName" type="{http://schemas.openxmlformats.org/spreadsheetml/2006/main}ST_Xstring" />
+ *       &lt;attribute name="userName" type="{http://schemas.openxmlformats.org/officeDocument/2006/sharedTypes}ST_Xstring" />
  *       &lt;attribute name="reservationPassword" type="{http://schemas.openxmlformats.org/spreadsheetml/2006/main}ST_UnsignedShortHex" />
+ *       &lt;attribute name="algorithmName" type="{http://schemas.openxmlformats.org/officeDocument/2006/sharedTypes}ST_Xstring" />
+ *       &lt;attribute name="hashValue" type="{http://www.w3.org/2001/XMLSchema}base64Binary" />
+ *       &lt;attribute name="saltValue" type="{http://www.w3.org/2001/XMLSchema}base64Binary" />
+ *       &lt;attribute name="spinCount" type="{http://www.w3.org/2001/XMLSchema}unsignedInt" />
  *     &lt;/restriction>
  *   &lt;/complexContent>
  * &lt;/complexType>
@@ -50,15 +56,27 @@ import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
  */
 @XmlAccessorType(XmlAccessType.FIELD)
 @XmlType(name = "CT_FileSharing")
-public class CTFileSharing {
+public class CTFileSharing implements Child
+{
 
-    @XmlAttribute
+    @XmlAttribute(name = "readOnlyRecommended")
     protected Boolean readOnlyRecommended;
-    @XmlAttribute
+    @XmlAttribute(name = "userName")
     protected String userName;
-    @XmlAttribute
+    @XmlAttribute(name = "reservationPassword")
     @XmlJavaTypeAdapter(HexBinaryAdapter.class)
     protected byte[] reservationPassword;
+    @XmlAttribute(name = "algorithmName")
+    protected String algorithmName;
+    @XmlAttribute(name = "hashValue")
+    protected byte[] hashValue;
+    @XmlAttribute(name = "saltValue")
+    protected byte[] saltValue;
+    @XmlAttribute(name = "spinCount")
+    @XmlSchemaType(name = "unsignedInt")
+    protected Long spinCount;
+    @XmlTransient
+    private Object parent;
 
     /**
      * Gets the value of the readOnlyRecommended property.
@@ -133,7 +151,125 @@ public class CTFileSharing {
      *     
      */
     public void setReservationPassword(byte[] value) {
-        this.reservationPassword = ((byte[]) value);
+        this.reservationPassword = value;
+    }
+
+    /**
+     * Gets the value of the algorithmName property.
+     * 
+     * @return
+     *     possible object is
+     *     {@link String }
+     *     
+     */
+    public String getAlgorithmName() {
+        return algorithmName;
+    }
+
+    /**
+     * Sets the value of the algorithmName property.
+     * 
+     * @param value
+     *     allowed object is
+     *     {@link String }
+     *     
+     */
+    public void setAlgorithmName(String value) {
+        this.algorithmName = value;
+    }
+
+    /**
+     * Gets the value of the hashValue property.
+     * 
+     * @return
+     *     possible object is
+     *     byte[]
+     */
+    public byte[] getHashValue() {
+        return hashValue;
+    }
+
+    /**
+     * Sets the value of the hashValue property.
+     * 
+     * @param value
+     *     allowed object is
+     *     byte[]
+     */
+    public void setHashValue(byte[] value) {
+        this.hashValue = value;
+    }
+
+    /**
+     * Gets the value of the saltValue property.
+     * 
+     * @return
+     *     possible object is
+     *     byte[]
+     */
+    public byte[] getSaltValue() {
+        return saltValue;
+    }
+
+    /**
+     * Sets the value of the saltValue property.
+     * 
+     * @param value
+     *     allowed object is
+     *     byte[]
+     */
+    public void setSaltValue(byte[] value) {
+        this.saltValue = value;
+    }
+
+    /**
+     * Gets the value of the spinCount property.
+     * 
+     * @return
+     *     possible object is
+     *     {@link Long }
+     *     
+     */
+    public Long getSpinCount() {
+        return spinCount;
+    }
+
+    /**
+     * Sets the value of the spinCount property.
+     * 
+     * @param value
+     *     allowed object is
+     *     {@link Long }
+     *     
+     */
+    public void setSpinCount(Long value) {
+        this.spinCount = value;
+    }
+
+    /**
+     * Gets the parent object in the object tree representing the unmarshalled xml document.
+     * 
+     * @return
+     *     The parent object.
+     */
+    public Object getParent() {
+        return this.parent;
+    }
+
+    public void setParent(Object parent) {
+        this.parent = parent;
+    }
+
+    /**
+     * This method is invoked by the JAXB implementation on each instance when unmarshalling completes.
+     * 
+     * @param parent
+     *     The parent object in the object tree.
+     * @param unmarshaller
+     *     The unmarshaller that generated the instance.
+     */
+    public void afterUnmarshal(Unmarshaller unmarshaller, Object parent) {
+        setParent(parent);
     }
 
 }

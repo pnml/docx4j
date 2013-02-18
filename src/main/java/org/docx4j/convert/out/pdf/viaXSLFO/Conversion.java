@@ -1,16 +1,11 @@
 package org.docx4j.convert.out.pdf.viaXSLFO;
 
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.io.StringReader;
 import java.math.BigInteger;
-import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 
 import javax.xml.bind.JAXBException;
 import javax.xml.bind.Unmarshaller;
@@ -18,32 +13,20 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.transform.Result;
 import javax.xml.transform.Source;
 import javax.xml.transform.Templates;
-import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerConfigurationException;
-import javax.xml.transform.sax.SAXResult;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
 
 import org.apache.avalon.framework.configuration.Configuration;
-import org.apache.avalon.framework.configuration.DefaultConfigurationBuilder;
 import org.apache.commons.io.FileUtils;
-import org.apache.fop.apps.Fop;
-import org.apache.fop.apps.FopFactory;
 import org.apache.fop.apps.MimeConstants;
 import org.apache.log4j.Logger;
 import org.docx4j.XmlUtils;
 import org.docx4j.convert.out.Containerization;
-import org.docx4j.convert.out.Converter;
+import org.docx4j.convert.out.ConversionSectionWrappers;
 import org.docx4j.convert.out.PageBreak;
-import org.docx4j.convert.out.html.HtmlExporterNG2.EndnoteState;
-import org.docx4j.convert.out.html.HtmlExporterNG2.FootnoteState;
-import org.docx4j.fonts.PhysicalFont;
-import org.docx4j.fonts.PhysicalFonts;
-import org.docx4j.fonts.fop.fonts.FontTriplet;
 import org.docx4j.jaxb.Context;
 import org.docx4j.model.PropertyResolver;
-import org.docx4j.model.SymbolModel.SymbolModelTransformState;
-import org.docx4j.model.TransformState;
 import org.docx4j.model.listnumbering.Emulator.ResultTriple;
 import org.docx4j.model.properties.Property;
 import org.docx4j.model.properties.PropertyFactory;
@@ -52,43 +35,34 @@ import org.docx4j.model.properties.paragraph.PBorderBottom;
 import org.docx4j.model.properties.paragraph.PBorderTop;
 import org.docx4j.model.properties.paragraph.PShading;
 import org.docx4j.model.properties.run.Font;
-import org.docx4j.model.structure.SectionWrapper;
-import org.docx4j.model.structure.jaxb.ObjectFactory;
-import org.docx4j.model.structure.jaxb.Sections;
-import org.docx4j.model.structure.jaxb.Sections.Section;
-import org.docx4j.model.table.TableModel.TableModelTransformState;
 import org.docx4j.openpackaging.exceptions.Docx4JException;
+import org.docx4j.openpackaging.packages.OpcPackage;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
-import org.docx4j.openpackaging.parts.WordprocessingML.MainDocumentPart;
+import org.docx4j.utils.FopUtils;
 import org.docx4j.wml.CTPageNumber;
 import org.docx4j.wml.CTSimpleField;
 import org.docx4j.wml.NumberFormat;
 import org.docx4j.wml.PPr;
 import org.docx4j.wml.PPrBase.NumPr.Ilvl;
 import org.docx4j.wml.RPr;
+import org.docx4j.wml.SectPr;
 import org.docx4j.wml.Style;
 import org.docx4j.wml.TcPr;
+import org.docx4j.wml.TrPr;
 import org.w3c.dom.Document;
 import org.w3c.dom.DocumentFragment;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.Text;
 import org.w3c.dom.traversal.NodeIterator;
-import org.xml.sax.InputSource;
-
 
 public class Conversion extends org.docx4j.convert.out.pdf.PdfConversion {
+	public static Logger log = Logger.getLogger(Conversion.class);
 	
-	public static Logger log = Logger.getLogger(Conversion.class);	
 	
 	public static boolean isLoggingEnabled() {
 		return log.isDebugEnabled();
 	}
-	
-	
-	
-	public static final String PART_TRACKER = "partTracker";
-	public static final String FIELD_TRACKER = "fieldTracker";  // are we in a field or not?
 	
 	public Conversion(WordprocessingMLPackage wordMLPackage) {
 		super(wordMLPackage);
@@ -113,93 +87,6 @@ public class Conversion extends org.docx4j.convert.out.pdf.PdfConversion {
 		saveFO = save;
 	}
 	
-
-	/**
-	 * Create a FOP font configuration for each font used in the
-	 * document.
-	 * 
-	 * @return
-	 */
-	private String declareFonts() {
-		
-		StringBuffer result = new StringBuffer();
-		Map fontsInUse = wordMLPackage.getMainDocumentPart().fontsInUse();
-		Iterator fontMappingsIterator = fontsInUse.entrySet().iterator();
-		while (fontMappingsIterator.hasNext()) {
-		    Map.Entry pairs = (Map.Entry)fontMappingsIterator.next();
-		    if(pairs.getKey()==null) {
-		    	log.info("Skipped null key");
-//		    	pairs = (Map.Entry)fontMappingsIterator.next();
-		    	continue;
-		    }
-		    
-		    String fontName = (String)pairs.getKey();		    
-		    
-		    PhysicalFont pf = wordMLPackage.getFontMapper().getFontMappings().get(fontName);
-		    
-		    if (pf==null) {
-		    	log.error("Document font " + fontName + " is not mapped to a physical font!");
-		    	continue;
-		    }
-		    
-		    String subFontAtt = "";
-		    if (pf.getEmbedFontInfo().getSubFontName()!=null)
-		    	subFontAtt= " sub-font=\"" + pf.getEmbedFontInfo().getSubFontName() + "\"";
-		    
-		    result.append("<font embed-url=\"" +pf.getEmbeddedFile() + "\""+ subFontAtt +">" );
-		    	// now add the first font triplet
-			    FontTriplet fontTriplet = (FontTriplet)pf.getEmbedFontInfo().getFontTriplets().get(0);
-			    addFontTriplet(result, fontTriplet);
-		    result.append("</font>" );
-		    
-		    // bold, italic etc
-		    PhysicalFont pfVariation = PhysicalFonts.getBoldForm(pf);
-		    if (pfVariation!=null) {
-			    result.append("<font embed-url=\"" +pfVariation.getEmbeddedFile() + "\""+ subFontAtt +">" );
-		    	addFontTriplet(result, pf.getName(), "normal", "bold");
-			    result.append("</font>" );
-		    }
-		    pfVariation = PhysicalFonts.getBoldItalicForm(pf);
-		    if (pfVariation!=null) {
-			    result.append("<font embed-url=\"" +pfVariation.getEmbeddedFile() + "\""+ subFontAtt +">" );
-		    	addFontTriplet(result, pf.getName(), "italic", "bold");
-			    result.append("</font>" );
-		    }
-		    pfVariation = PhysicalFonts.getItalicForm(pf);
-		    if (pfVariation!=null) {
-			    result.append("<font embed-url=\"" +pfVariation.getEmbeddedFile() + "\""+ subFontAtt +">" );
-		    	addFontTriplet(result, pf.getName(), "italic", "normal");
-			    result.append("</font>" );
-		    }
-			    
-		}
-		
-		return result.toString();
-		
-	}
-		
-	private void addFontTriplet(StringBuffer result, FontTriplet fontTriplet) {
-	    result.append("<font-triplet name=\"" + fontTriplet.getName() + "\""
-				+ " style=\"" + fontTriplet.getStyle() + "\""
-				+ " weight=\"" + weightToCSS2FontWeight(fontTriplet.getWeight()) + "\""
-						+ "/>" );		
-	}
-	private void addFontTriplet(StringBuffer result, String familyName, String style, String weight) {
-	    result.append("<font-triplet name=\"" + familyName + "\""
-				+ " style=\"" + style + "\""
-				+ " weight=\"" + weight + "\""
-						+ "/>" );		
-	}
-	
-	private String weightToCSS2FontWeight(int i) {
-		
-		if (i>=700) {
-			return "bold";
-		} else {
-			return "normal";
-		}
-		
-	}
 	
 	Configuration fopConfig;
 	/**
@@ -225,52 +112,22 @@ public class Conversion extends org.docx4j.convert.out.pdf.PdfConversion {
 	 * */     
 	@Override
 	public void output(OutputStream os, PdfSettings settings) throws Docx4JException {
+	PdfConversionContext conversionContext = null;
+	Configuration localFopConfiguration = fopConfig;
+	WordprocessingMLPackage localWmlPackage = (wordMLPackage != null ? 
+			wordMLPackage : (WordprocessingMLPackage)settings.getWmlPackage());
 
-		// Refresh the document model, in case
-		// the user has added headers or footers
-		wordMLPackage.getDocumentModel().refresh();
+		if (settings == null) {
+			settings = new PdfSettings();
+		}
+		settings.setWmlPackage(localWmlPackage);
+	
 		
-		// See http://xmlgraphics.apache.org/fop/0.95/embedding.html
-		// (reuse if you plan to render multiple documents!)
-		FopFactory fopFactory = FopFactory.newInstance();
-
+		if (localWmlPackage == null) {
+			throw new Docx4JException("The WordprocessingMLPackage is missing.");
+		}
+		
 		try {
-
-			if (fopConfig == null) {
-
-				DefaultConfigurationBuilder cfgBuilder = new DefaultConfigurationBuilder();
-				String myConfig = "<fop version=\"1.0\"><strict-configuration>true</strict-configuration>"
-						+ "<renderers><renderer mime=\"application/pdf\">"
-						+ "<fonts>" + declareFonts() +
-						// <directory>/home/dev/fonts</directory>" +
-						// "<directory>/usr/share/fonts/truetype/ttf-lucida</directory>"
-						// +
-						// "<directory>/var/lib/defoma/fontconfig.d/D</directory>"
-						// +
-						// "<directory>/var/lib/defoma/fontconfig.d/L</directory>"
-						// +
-						// "<auto-detect/>" +
-						"</fonts></renderer></renderers></fop>";
-
-				log.debug("\nUsing config:\n " + myConfig + "\n");
-
-				// See FOP's PrintRendererConfigurator
-				// String myConfig = "<fop
-				// version=\"1.0\"><strict-configuration>true</strict-configuration>"
-				// +
-				// "<renderers><renderer mime=\"application/pdf\">" +
-				// "<fonts><directory
-				// recursive=\"true\">C:\\WINDOWS\\Fonts</directory>" +
-				// "<auto-detect/>" +
-				// "</fonts></renderer></renderers></fop>";
-
-				fopConfig = cfgBuilder.build(new ByteArrayInputStream(myConfig
-						.getBytes("UTF-8")));
-			}
-
-			fopFactory.setUserConfig(fopConfig);
-
-			Fop fop = fopFactory.newFop(MimeConstants.MIME_PDF, os);
 
 			/*
 			 * Based on the principle that we'll do all the smarts via extension
@@ -284,73 +141,37 @@ public class Conversion extends org.docx4j.convert.out.pdf.PdfConversion {
 			// Document domDoc =
 			// XmlUtils.marshaltoW3CDomDocument(wordMLPackage.getMainDocumentPart().getJaxbElement());
 
-			// Containerization of borders/shading
-			MainDocumentPart mdp = wordMLPackage.getMainDocumentPart();
-
 			// Don't change the user's Document object; create a tmp one
-			org.docx4j.wml.Document tmpDoc = XmlUtils.deepCopy(wordMLPackage
+			org.docx4j.wml.Document tmpDoc = XmlUtils.deepCopy(localWmlPackage
 					.getMainDocumentPart().getJaxbElement());
+			
+			
+			// Preprocessing
 			Containerization.groupAdjacentBorders(tmpDoc.getBody());
 			PageBreak.movePageBreaks(tmpDoc.getBody());
+			ConversionSectionWrappers conversionSectionWrappers = 
+					ConversionSectionWrappers.build(tmpDoc, localWmlPackage);
 
-			// log.info(XmlUtils.marshaltoString(mdp.getJaxbElement(), false));
-
-			Sections sections = createSectionContainers(tmpDoc);
-			Document domDoc = XmlUtils.marshaltoW3CDomDocument(sections,
+			conversionContext = new PdfConversionContext(settings, conversionSectionWrappers);
+			
+			Document domDoc = XmlUtils.marshaltoW3CDomDocument(conversionSectionWrappers.createSections(),
 					Context.jcSectionModel);
-
-			log.debug(XmlUtils.marshaltoString(sections, false, Context.jcSectionModel));
-			
-			if (settings == null) {
-				settings = new PdfSettings();
+				
+			if (log.isDebugEnabled()) {
+				log.debug(XmlUtils.w3CDomNodeToString(domDoc));
 			}
-			settings.setWmlPackage(wordMLPackage);
-			boolean privateImageHandler = false;
-			if (settings.getImageHandler() == null) {
-				settings.setImageHandler(settings.getImageDirPath() != null ? 
-						new PDFConversionImageHandler(settings.getImageDirPath(), true) : 
-						new PDFConversionImageHandler());
-				privateImageHandler = true;
+
+			if (localFopConfiguration == null) {
+				localFopConfiguration = 
+						FopUtils.createDefaultConfiguration(localWmlPackage.getFontMapper(), 
+															localWmlPackage.getMainDocumentPart().fontsInUse());
 			}
-			
-
-			// Resulting SAX events (the generated FO) must be piped through to
-			// FOP
-			Result result = new SAXResult(fop.getDefaultHandler());
-
-			// Allow arbitrary objects to be passed to the converters.
-			// The objects are assumed to be specific to a particular converter
-			// (eg table),
-			// so assume there will be one object implementing TransformState
-			// per converter.
-			HashMap<String, TransformState> modelStates = new HashMap<String, TransformState>();
-			settings.getSettings().put("modelStates", modelStates);
-
-			// Converter c = new Converter();
-			Converter.getInstance().registerModelConverter("w:tbl",
-					new TableWriter());
-			Converter.getInstance().registerModelConverter("w:sym",
-					new SymbolWriter());
-
-			// By convention, the transform state object is stored by reference
-			// to the
-			// type of element to which its model applies
-			modelStates.put("w:tbl", new TableModelTransformState());
-			modelStates.put("w:sym", new SymbolModelTransformState());
-
-			modelStates.put("footnoteNumber", new FootnoteState());
-			modelStates.put("endnoteNumber", new EndnoteState());
-			modelStates.put(PART_TRACKER, new PartTracker());
-			modelStates.put(FIELD_TRACKER, new InField());
-
-			Converter.getInstance().start(wordMLPackage);
-
 			if (saveFO != null || log.isDebugEnabled()) {
 
 				ByteArrayOutputStream intermediate = new ByteArrayOutputStream();
 				Result intermediateResult = new StreamResult(intermediate);
 
-				XmlUtils.transform(domDoc, xslt, settings.getSettings(), intermediateResult);
+				XmlUtils.transform(domDoc, xslt, conversionContext.getXsltParameters(), intermediateResult);
 
 				String fo = intermediate.toString("UTF-8");
 				log.debug(fo);
@@ -360,18 +181,9 @@ public class Conversion extends org.docx4j.convert.out.pdf.PdfConversion {
 					log.info("Saved " + saveFO.getPath());
 				}
 
-				Source src = new StreamSource(new StringReader(fo));
-
-				Transformer transformer = XmlUtils.getTransformerFactory().newTransformer();
-				transformer.transform(src, result);
+				FopUtils.render(localFopConfiguration, MimeConstants.MIME_PDF, fo, null, os);
 			} else {
-
-				XmlUtils.transform(domDoc, xslt, settings.getSettings(), result);
-			}
-			
-			if (privateImageHandler) {
-				//remove a locally created imageHandler in case the HtmlSettings get reused
-				settings.getSettings().remove(PdfSettings.IMAGE_HANDLER);
+				FopUtils.render(localFopConfiguration, MimeConstants.MIME_PDF, domDoc, xslt, conversionContext.getXsltParameters(), os);
 			}
 
 		} catch (Exception e) {
@@ -386,84 +198,6 @@ public class Conversion extends org.docx4j.convert.out.pdf.PdfConversion {
 		}
 
 	}
-    
-	private Sections createSectionContainers(org.docx4j.wml.Document doc) {
-				
-		ObjectFactory factory = new ObjectFactory();
-		
-		Sections sections = factory.createSections();
-		Section section = factory.createSectionsSection();
-		section.setName("s1"); // name must match fo master
-		
-		sections.getSection().add(section);
-						
-		//org.docx4j.wml.Document doc = (org.docx4j.wml.Document)wordMLPackage.getMainDocumentPart().getJaxbElement();
-		
-		int i = 2;
-		for (Object o : doc.getBody().getEGBlockLevelElts() ) {
-			
-			if (o instanceof org.docx4j.wml.P) {
-				if (((org.docx4j.wml.P)o).getPPr() != null ) {
-					org.docx4j.wml.PPr ppr = ((org.docx4j.wml.P)o).getPPr();
-					if (ppr.getSectPr()!=null) {
-
-						// According to the ECMA-376 2ed, if type is not specified, read it as next page
-						// However Word 2007 sometimes treats it as continuous, and sometimes doesn't??						
-						
-						if ( ppr.getSectPr().getType()!=null
-								     && ppr.getSectPr().getType().getVal().equals("continuous")) {
-							// If its continuous, don't add a section
-						} else {
-							section = factory.createSectionsSection();
-							section.setName("s" +i); // name must match fo master
-							sections.getSection().add(section);	
-							i++;
-						}
-					}
-				}				
-			} 
-			section.getAny().add( marshall(o) );
-				// TODO: since the section model knows nothing about WML,
-				// we have to marshall each object separately.
-				// To fix this, next time wml is generated, include the section model there!
-		}
-		return sections;				
-	}
-    
-	private Element marshall(Object o) {
-		
-		try {
-			org.w3c.dom.Document w3cDoc = 
-				XmlUtils.marshaltoW3CDomDocument(o);
-			
-			
-				/* Force the RelationshipsPart to be marshalled using
-				 * the normal non-rels part NamespacePrefixMapper,
-				 * since otherwise (because we'd be using 2 namespace
-				 * prefix mappers?) we end up with errant xmlns="",
-				 * which is wrong and stops Word 2007 from loading the
-				 * document.
-				 * 
-				 * Note that xmlPackage.xsd defines:
-				 * 	<xsd:complexType name="CT_XmlData">
-						<xsd:sequence>
-							<xsd:any processContents="skip" />
-						</xsd:sequence>
-				 *
-				 * Note also that marshaltoString uses 
-				 * just the normal non-rels part NamespacePrefixMapper,
-				 * so if/when this is marshalled again, that could
-				 * have been causing problems as well?? 
-				 */
-	        return w3cDoc.getDocumentElement();		        
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} 		        
-		return null;
-		
-	}
-	
 	
 
     /* ---------------Xalan XSLT Extension Functions ---------------- */
@@ -477,67 +211,12 @@ public class Conversion extends org.docx4j.convert.out.pdf.PdfConversion {
 	public static void logWarn(String message) {
 		log.warn(message);
 	}
-	
-	public static DocumentFragment notImplemented(NodeIterator nodes, String message) {
 
-		Node n = nodes.nextNode();
-		log.warn("NOT IMPLEMENTED: support for "+ n.getNodeName() + "\n" + message);
-		
-		if (log.isDebugEnabled() ) {
-			
-			if (message==null) message="";
-			
-			log.debug( XmlUtils.w3CDomNodeToString(n)  );
-
-			// Return something which will show up in the PDF
-			return message("NOT IMPLEMENTED: support for " + n.getNodeName() + " - " + message);
-		} else {
-			
-			// Put it in a comment node instead?
-			
-			return null;
-		}
-	}
-	
-	public static DocumentFragment message(String message) {
-		
-		if (!log.isDebugEnabled()) return null;
-
-		String fo = "<fo:block xmlns:fo=\"http://www.w3.org/1999/XSL/Format\"  " 
-			+ "font-size=\"12pt\" "
-        	+ "color=\"red\" "
-        	+ "font-family=\"sans-serif\" "
-        	+ "line-height=\"15pt\" "
-        	+ "space-after.optimum=\"3pt\" "
-        	+ "text-align=\"justify\"> "
-			+ message
-			+ "</fo:block>";  
-
-		javax.xml.parsers.DocumentBuilderFactory dbf = DocumentBuilderFactory
-				.newInstance();
-		dbf.setNamespaceAware(true);
-		StringReader reader = new StringReader(fo);
-		InputSource inputSource = new InputSource(reader);
-		Document doc = null;
-		try {
-			doc = dbf.newDocumentBuilder().parse(inputSource);
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		reader.close();
-
-		DocumentFragment docfrag = doc.createDocumentFragment();
-		docfrag.appendChild(doc.getDocumentElement());
-		return docfrag;		
-	}
-
-    public static DocumentFragment createBlockForSdt( 
-    		WordprocessingMLPackage wmlPackage,
+    public static DocumentFragment createBlockForSdt(PdfConversionContext context, 
     		NodeIterator pPrNodeIt,
     		String pStyleVal, NodeIterator childResults, String tag) {
     	
-    	DocumentFragment docfrag = createBlock( wmlPackage,
+    	DocumentFragment docfrag = createBlock(context,
         		 pPrNodeIt,
         		 pStyleVal,  childResults,
         		 true);
@@ -560,12 +239,12 @@ public class Conversion extends org.docx4j.convert.out.pdf.PdfConversion {
     }	
 
     public static DocumentFragment createInlineForSdt( 
-    		WordprocessingMLPackage wmlPackage,
+    		PdfConversionContext context,
     		NodeIterator rPrNodeIt,
     		NodeIterator childResults, String tag) {
     	
     	DocumentFragment docfrag = createBlockForRPr( 
-        		wmlPackage,
+        		context,
         		null,
         		rPrNodeIt,
         		childResults);
@@ -583,33 +262,34 @@ public class Conversion extends org.docx4j.convert.out.pdf.PdfConversion {
      * @return
      */
     public static DocumentFragment createBlockForPPr( 
-    		WordprocessingMLPackage wmlPackage,
+    		PdfConversionContext context,
     		NodeIterator pPrNodeIt,
     		String pStyleVal, NodeIterator childResults) {
 
     	return createBlock( 
-        		wmlPackage,
+        		context,
         		pPrNodeIt,
         		pStyleVal, childResults,
         		false);    	
     }
     
     public static DocumentFragment createBlock( 
-    		WordprocessingMLPackage wmlPackage,
+    		PdfConversionContext context,
     		NodeIterator pPrNodeIt,
     		String pStyleVal, NodeIterator childResults,
     		boolean sdt) {
 
-    	PropertyResolver propertyResolver = 
-    		wmlPackage.getMainDocumentPart().getPropertyResolver();
+    	PropertyResolver propertyResolver = context.getPropertyResolver();
     	
     	// Note that this is invoked for every paragraph with a pPr node.
     	
     	// incoming objects are org.apache.xml.dtm.ref.DTMNodeIterator 
     	// which implements org.w3c.dom.traversal.NodeIterator
     	
-		Style defaultParagraphStyle = wmlPackage.getMainDocumentPart().getStyleDefinitionsPart().getDefaultParagraphStyle();
-				// TODO: handle the case where there is no SDP!
+		Style defaultParagraphStyle = 
+				(context.getWmlPackage().getMainDocumentPart().getStyleDefinitionsPart() != null ?
+				context.getWmlPackage().getMainDocumentPart().getStyleDefinitionsPart().getDefaultParagraphStyle() :
+				null);
 		
     	String defaultParagraphStyleId;
     	if (defaultParagraphStyle==null) // possible, for non MS source docx
@@ -715,7 +395,7 @@ public class Conversion extends org.docx4j.convert.out.pdf.PdfConversion {
 	        	ResultTriple triple;
 	        	if (pPrDirect!=null && pPrDirect.getNumPr()!=null) {
 	        		triple = org.docx4j.model.listnumbering.Emulator.getNumber(
-	        			wmlPackage, pStyleVal, 
+	        			context.getWmlPackage(), pStyleVal, 
 	        			pPrDirect.getNumPr().getNumId().getVal().toString(), 
 	        			pPrDirect.getNumPr().getIlvl().getVal().toString() ); 
 	        	} else {
@@ -726,7 +406,7 @@ public class Conversion extends org.docx4j.convert.out.pdf.PdfConversion {
 	        		triple = null; 
 	        		if (pPr.getNumPr().getNumId()!=null) {
 		        		triple = org.docx4j.model.listnumbering.Emulator.getNumber(
-			        			wmlPackage, pStyleVal, 
+		        				context.getWmlPackage(), pStyleVal, 
 			        			pPr.getNumPr().getNumId().getVal().toString(), 
 			        			ilvlString ); 		        	
 	        		}
@@ -749,7 +429,7 @@ public class Conversion extends org.docx4j.convert.out.pdf.PdfConversion {
 	        		
 	        		// Set the font
 	        		if (triple.getNumFont()!=null) {
-	        			String font = Font.getPhysicalFont(wmlPackage, triple.getNumFont() );
+	        			String font = Font.getPhysicalFont(context.getWmlPackage(), triple.getNumFont() );
 	        			if (font!=null) {
 	        				foListItemLabelBody.setAttribute(Font.FO_NAME, font );
 	        			}
@@ -789,12 +469,12 @@ public class Conversion extends org.docx4j.convert.out.pdf.PdfConversion {
 				// Ignore paragraph borders once inside the container
 				boolean ignoreBorders = !sdt;
 
-				createFoAttributes(wmlPackage, pPr, ((Element)foBlockElement), inlist, ignoreBorders );
+				createFoAttributes(context.getWmlPackage(), pPr, ((Element)foBlockElement), inlist, ignoreBorders );
 			}
 
 			
 			if (rPr!=null) {											
-				createFoAttributes(wmlPackage, rPr, ((Element)foBlockElement) );
+				createFoAttributes(context.getWmlPackage(), rPr, ((Element)foBlockElement) );
 	        }
         
 			// Our fo:block wraps whatever result tree fragment
@@ -841,9 +521,9 @@ public class Conversion extends org.docx4j.convert.out.pdf.PdfConversion {
     	
     }
 
-	public static void createFoAttributes(WordprocessingMLPackage wmlPackage, PPr pPr, Element foBlockElement, boolean inList, boolean ignoreBorders){
+	public static void createFoAttributes(OpcPackage opcPackage, PPr pPr, Element foBlockElement, boolean inList, boolean ignoreBorders){
 		
-    	List<Property> properties = PropertyFactory.createProperties(wmlPackage, pPr);
+    	List<Property> properties = PropertyFactory.createProperties(opcPackage, pPr);
     	
     	for( Property p :  properties ) {
 			if (p!=null) {
@@ -870,17 +550,31 @@ public class Conversion extends org.docx4j.convert.out.pdf.PdfConversion {
     	
 	}
 	
+	/*
+	 *  @since 3.0.0
+	 */
+	public static void applyFoAttributes(List<Property> properties, Element foElement) {
+		if ((properties != null) && (!properties.isEmpty())) {
+			for (int i=0; i<properties.size(); i++) {
+				properties.get(i).setXslFO(foElement);
+			}
+		}
+	}
+	
+    protected static void createFoAttributes(TrPr trPr, Element foBlockElement){
+    	if (trPr == null) {
+    		return;
+    	}
+    	applyFoAttributes(PropertyFactory.createProperties(trPr), foBlockElement);
+    }
+	
     protected static void createFoAttributes(TcPr tcPr, Element foBlockElement){
     	// includes TcPrInner.TcBorders, CTShd, TcMar, CTVerticalJc
     	
 		if (tcPr==null) {
 			return;
 		}
-    	
-    	List<Property> properties = PropertyFactory.createProperties(tcPr);    	
-    	for( Property p :  properties ) {
-			p.setXslFO(foBlockElement);
-    	}    
+    	applyFoAttributes(PropertyFactory.createProperties(tcPr), foBlockElement);
     }
 	
 
@@ -895,13 +589,12 @@ public class Conversion extends org.docx4j.convert.out.pdf.PdfConversion {
      * @return
      */
     public static DocumentFragment createBlockForRPr( 
-    		WordprocessingMLPackage wmlPackage,
+    		PdfConversionContext context,
     		NodeIterator pPrNodeIt,
     		NodeIterator rPrNodeIt,
     		NodeIterator childResults ) {
 
-    	PropertyResolver propertyResolver = 
-    		wmlPackage.getMainDocumentPart().getPropertyResolver();
+    	PropertyResolver propertyResolver = context.getPropertyResolver();
     	
     	// Note that this is invoked for every paragraph with a pPr node.
     	
@@ -957,7 +650,7 @@ public class Conversion extends org.docx4j.convert.out.pdf.PdfConversion {
 			}
 			
 			//if (rPr!=null) {				
-				createFoAttributes(wmlPackage, rPr, ((Element)foInlineElement) );
+				createFoAttributes(context.getWmlPackage(), rPr, ((Element)foInlineElement) );
 			//}
 			
 			// Our fo:block wraps whatever result tree fragment
@@ -981,10 +674,10 @@ public class Conversion extends org.docx4j.convert.out.pdf.PdfConversion {
     	
     }
 
-	public static void createFoAttributes(WordprocessingMLPackage wmlPackage,
+	public static void createFoAttributes(OpcPackage opcPackage,
 			RPr rPr, Element foInlineElement){
 
-    	List<Property> properties = PropertyFactory.createProperties(wmlPackage, rPr);
+    	List<Property> properties = PropertyFactory.createProperties(opcPackage, rPr);
     	
     	for( Property p :  properties ) {
     		p.setXslFO(foInlineElement);
@@ -994,7 +687,7 @@ public class Conversion extends org.docx4j.convert.out.pdf.PdfConversion {
 	
 
     public static DocumentFragment createBlockForFldSimple( 
-    		WordprocessingMLPackage wmlPackage,
+    		PdfConversionContext context,
     		NodeIterator fldSimpleNodeIt,
     		NodeIterator childResults ) {
     	
@@ -1045,11 +738,11 @@ public class Conversion extends org.docx4j.convert.out.pdf.PdfConversion {
 			
 		String instr = field.getInstr();			
 
-		return handleField(instr, childResults);
+		return handleField(context, instr, childResults);
         	
    	}
     	
-   	private static DocumentFragment handleField(String instr, NodeIterator childResults) {
+   	private static DocumentFragment handleField(PdfConversionContext context, String instr, NodeIterator childResults) {
     		
     		try {
     			
@@ -1063,7 +756,7 @@ public class Conversion extends org.docx4j.convert.out.pdf.PdfConversion {
 			if ( !instr.toLowerCase().contains( "page") ) {
 				
 				if (log.isDebugEnabled() ) {
-					return message("no support for fields (except PAGE numbering)");
+					return context.getMessageWriter().message("no support for fields (except PAGE numbering)");
 				} else {
 					
 					// Try this
@@ -1114,7 +807,7 @@ public class Conversion extends org.docx4j.convert.out.pdf.PdfConversion {
     }
 
     public static DocumentFragment createBlockForInstrText( 
-    		WordprocessingMLPackage wmlPackage,
+    		PdfConversionContext context,
     		NodeIterator fldSimpleNodeIt,
     		NodeIterator childResults ) {
     	
@@ -1141,17 +834,17 @@ public class Conversion extends org.docx4j.convert.out.pdf.PdfConversion {
 			e1.printStackTrace();
 		}			
     	
-		return handleField( field.getValue(), childResults);
+		return handleField(context, field.getValue(), childResults);
     	
     }
     
-    public static String getPageNumberFormat(WordprocessingMLPackage wordmlPackage, int sectionNumber) {
+    public static String getPageNumberFormat(PdfConversionContext context) {
     	
-    	SectionWrapper sw = wordmlPackage.getDocumentModel().getSections().get(sectionNumber-1);
+    	SectPr sectPr = context.getSections().getCurrentSection().getSectPr();
     	
-    	if (sw.getSectPr()==null) return "1";
+    	if (sectPr==null) return "1";
     	
-    	CTPageNumber pageNumber = sw.getSectPr().getPgNumType();
+    	CTPageNumber pageNumber = sectPr.getPgNumType();
     	
     	if (pageNumber==null) return "1";
     	
@@ -1183,13 +876,13 @@ public class Conversion extends org.docx4j.convert.out.pdf.PdfConversion {
     	return "1";
     }
 	
-    public static String getPageNumberInitial(WordprocessingMLPackage wordmlPackage, int sectionNumber) {
-
-    	SectionWrapper sw = wordmlPackage.getDocumentModel().getSections().get(sectionNumber-1);
-
-    	if (sw.getSectPr()==null) return "1";
+    public static String getPageNumberInitial(PdfConversionContext context) {
     	
-    	CTPageNumber pageNumber = sw.getSectPr().getPgNumType();
+    	SectPr sectPr = context.getSections().getCurrentSection().getSectPr();
+
+    	if (sectPr==null) return "1";
+    	
+    	CTPageNumber pageNumber = sectPr.getPgNumType();
     	
     	if (pageNumber==null) {
     		log.debug("No PgNumType");
@@ -1202,6 +895,15 @@ public class Conversion extends org.docx4j.convert.out.pdf.PdfConversion {
     	
     	return start.toString();
     }
+	
+	
+	public static void inFieldUpdateState(PdfConversionContext context, NodeIterator fldCharNodeIt) {
+		context.inFieldUpdateState(fldCharNodeIt);
+	}
+	
+	public static boolean inFieldGetState(PdfConversionContext context) {
+		return context.inFieldGetState();
+	}
 	
 }
     

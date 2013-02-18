@@ -1,7 +1,7 @@
 /*
- *  Copyright 2010, Plutext Pty Ltd.
+ *  Copyright 2010-2013, Plutext Pty Ltd.
  *   
- *  This file is part of docx4j.
+ *  This file is part of xlsx4j, a component of docx4j.
 
     docx4j is licensed under the Apache License, Version 2.0 (the "License"); 
     you may not use this file except in compliance with the License. 
@@ -17,8 +17,6 @@
     limitations under the License.
 
  */
-
-
 package org.xlsx4j.sml;
 
 import javax.xml.bind.annotation.XmlEnum;
@@ -47,32 +45,12 @@ import javax.xml.bind.annotation.XmlType;
 @XmlEnum
 public enum STRwColActionType {
 
-
-    /**
-     * Insert Row
-     * 
-     */
     @XmlEnumValue("insertRow")
     INSERT_ROW("insertRow"),
-
-    /**
-     * Delete Row
-     * 
-     */
     @XmlEnumValue("deleteRow")
     DELETE_ROW("deleteRow"),
-
-    /**
-     * Column Insert
-     * 
-     */
     @XmlEnumValue("insertCol")
     INSERT_COL("insertCol"),
-
-    /**
-     * Delete Column
-     * 
-     */
     @XmlEnumValue("deleteCol")
     DELETE_COL("deleteCol");
     private final String value;

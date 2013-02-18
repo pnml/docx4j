@@ -21,19 +21,12 @@
 package org.docx4j.openpackaging.packages;
 
 
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.InputStream;
-import java.io.StringWriter;
-import java.util.HashMap;
 import java.util.Map;
 
 import javax.xml.bind.JAXBContext;
-import javax.xml.bind.JAXBElement;
-import javax.xml.bind.JAXBException;
 import javax.xml.bind.Marshaller;
-import javax.xml.bind.PropertyException;
 import javax.xml.bind.Unmarshaller;
 import javax.xml.transform.Source;
 import javax.xml.transform.Templates;
@@ -41,17 +34,12 @@ import javax.xml.transform.stream.StreamSource;
 
 import org.apache.log4j.Logger;
 import org.docx4j.Docx4jProperties;
-import org.docx4j.TextUtils;
 import org.docx4j.XmlUtils;
 import org.docx4j.convert.out.flatOpcXml.FlatOpcXmlCreator;
-import org.docx4j.convert.out.pdf.viaXSLFO.Conversion;
-import org.docx4j.convert.out.pdf.viaXSLFO.PartTracker;
-import org.docx4j.docProps.core.dc.elements.SimpleLiteral;
 import org.docx4j.fonts.IdentityPlusMapper;
 import org.docx4j.fonts.Mapper;
 import org.docx4j.jaxb.Context;
 import org.docx4j.jaxb.NamespacePrefixMapperUtils;
-import org.docx4j.model.TransformState;
 import org.docx4j.model.structure.DocumentModel;
 import org.docx4j.model.structure.HeaderFooterPolicy;
 import org.docx4j.model.structure.PageDimensions;
@@ -61,7 +49,6 @@ import org.docx4j.openpackaging.contenttype.ContentTypeManager;
 import org.docx4j.openpackaging.contenttype.ContentTypes;
 import org.docx4j.openpackaging.exceptions.Docx4JException;
 import org.docx4j.openpackaging.exceptions.InvalidFormatException;
-import org.docx4j.openpackaging.io.LoadFromZipNG;
 import org.docx4j.openpackaging.io.SaveToZipFile;
 import org.docx4j.openpackaging.parts.DocPropsCorePart;
 import org.docx4j.openpackaging.parts.DocPropsCustomPart;
@@ -71,8 +58,6 @@ import org.docx4j.openpackaging.parts.Part;
 import org.docx4j.openpackaging.parts.WordprocessingML.FontTablePart;
 import org.docx4j.openpackaging.parts.WordprocessingML.GlossaryDocumentPart;
 import org.docx4j.openpackaging.parts.WordprocessingML.MainDocumentPart;
-import org.docx4j.openpackaging.parts.opendope.ConditionsPart;
-import org.docx4j.openpackaging.parts.opendope.XPathsPart;
 import org.docx4j.openpackaging.parts.relationships.Namespaces;
 import org.docx4j.wml.Document;
 import org.docx4j.wml.SectPr;

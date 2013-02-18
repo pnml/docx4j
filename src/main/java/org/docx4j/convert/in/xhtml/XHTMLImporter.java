@@ -29,7 +29,9 @@ import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.text.MessageFormat;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -680,35 +682,13 @@ public class XHTMLImporter {
             		// represented as a top cell containing the actual content with a vMerge tag with "restart" attribute 
             		// and a series of dummy cells having a vMerge tag with no (or "continue") attribute.            		
             		            		
-            		// if cell to the left in source is part of a rowspan, 
-            		// insert dummy cell first            			
-            		int effCol;
-					TableSectionBox section = tcb.getSection();
-					effCol = tcb.getTable().colToEffCol(tcb.getCol());
-					if (effCol != 0) {	                    
-					    TableCellBox prevCell = section.cellAt(tcb.getRow(), tcb.getCol() - 1);
-					    log.debug("Got prevCell for " + tcb.getRow() + ", " + tcb.getCol() );
-					    log.debug("it is  " + prevCell.getRow() + ", " + prevCell.getCol() );
-					    if ( prevCell.getRow() < tcb.getRow()
-					    		&& prevCell.getStyle()!=null
-					    		&& prevCell.getStyle().getRowSpan()>1 ) {
-					    	// eg tcb is r2,c1 & prevCell is r1,c0
-							Tc dummy = Context.getWmlObjectFactory().createTc();
-							contentContext.add(dummy);
-
-							TcPr tcPr = Context.getWmlObjectFactory().createTcPr();
-							dummy.setTcPr(tcPr);
-							
-							VMerge vm = Context.getWmlObjectFactory().createTcPrInnerVMerge();
-							//vm.setVal("continue");
-							tcPr.setVMerge(vm);
-							
-							this.setCellWidthAuto(tcPr);
-							
-							// Must have an empty w:p
-							dummy.getContent().add( new P() );
-					    }
+					// if current cell is the first real cell in the row, but is not in the leftmost position, then
+					// search for vertically spanned cells to the left and insert dummy cells before current
+					if (tcb.getParent().getChild(0) == tcb && tcb.getCol() > 0) {
+						insertDummyVMergedCells(trContext, tcb, true);
 					}
+
+					int effCol = tcb.getTable().colToEffCol(tcb.getCol());
             		
                     // The cell proper
             		Tc tc = Context.getWmlObjectFactory().createTc();
@@ -760,58 +740,16 @@ public class XHTMLImporter {
                         }
                     } 
  */            		
-            		
-            		// if this is the last real cell in the source,
-            		// is there a rowspan above and to the right?
-					effCol = tcb.getTable().colToEffCol(tcb.getCol() + tcb.getStyle().getColSpan());
-					int numEffCols = tcb.getTable().numEffCols(); 
-					if (effCol >= numEffCols) {
-					    // we we're already in rightmost col
-					} else { 
-						TableCellBox nextCell = tcb.getSection().cellAt(tcb.getRow(), effCol);
-					    if (nextCell==null) {
-					    	//throw new Docx4JException("XHTML table import: Null nextCell for row " + tcb.getRow() + ", col " + tcb.getCol()); // Check your table is OK
-					    	log.error("XHTML table import: Null nextCell for row " + tcb.getRow() + ", col " + tcb.getCol()); // Check your table is OK
-					    	// eg http://en.wikipedia.org/w/index.php?title=Microsoft_Word&printable=yes
-					    } else {
-						    log.debug("Got nextCell for " + tcb.getRow() + ", " + tcb.getCol() );
-						    log.debug("it is  " + nextCell.getRow() + ", " + nextCell.getCol() );
-						    if ( nextCell.getRow() < tcb.getRow()
-						    		// && nextCell.getStyle().getRowSpan()>1
-						    		&& nextCell.getTable().colToEffCol(nextCell.getCol() + nextCell.getStyle().getColSpan())==numEffCols // rightmost
-						    		) {
-						    	log.debug("it has rowspan  " + nextCell.getStyle().getRowSpan() );
-						    	// eg tcb is r2,c1 & nextCell is r1,c2
-								Tc dummy = Context.getWmlObjectFactory().createTc();
-								trContext.add(dummy);
-
-								TcPr tcPr2 = Context.getWmlObjectFactory().createTcPr();
-								dummy.setTcPr(tcPr2);
-								
-								VMerge vm = Context.getWmlObjectFactory().createTcPrInnerVMerge();
-								//vm.setVal("continue");
-								tcPr2.setVMerge(vm);
-	
-								this.setCellWidthAuto(tcPr2);
-								
-								// Must have an empty w:p
-								dummy.getContent().add( new P() );	            			
-						    }
-					    }
-					}
-            		
-
             		// colspan support: horizontally merged cells are represented by one cell
             		// with a gridSpan attribute; 
             		int colspan = tcb.getStyle().getColSpan(); 
             		if (colspan>1) {
             			
-            			if (tc.getTcPr()!=null) {
-            				log.warn("Trying to add GridSpan, when we've already added VMerge"); // this code doesn't support both at once
-            			}
-            			
-            			TcPr tcPr2 = Context.getWmlObjectFactory().createTcPr();
-            			tc.setTcPr(tcPr2);
+						TcPr tcPr2 = tc.getTcPr();
+						if (tcPr2 == null) {
+							tcPr2 = Context.getWmlObjectFactory().createTcPr();
+							tc.setTcPr(tcPr2);
+						}
 
             			GridSpan gs = Context.getWmlObjectFactory().createTcPrInnerGridSpan();
             			gs.setVal( BigInteger.valueOf(colspan));
@@ -820,6 +758,9 @@ public class XHTMLImporter {
             			this.setCellWidthAuto(tcPr2);            			
             		}
             		
+					// search for vertically spanned cells to the right from current, and insert dummy cells after it
+					insertDummyVMergedCells(trContext, tcb, false);
+
 	            } else {
 	            	
 	            	// Avoid creating paragraphs for html, body
@@ -948,6 +889,75 @@ public class XHTMLImporter {
     }
 
 	/**
+	 * Rowspan and colspan support.
+	 * Search for lower parts of vertically merged cells, adjacent to current cell in given direction.
+	 * Then insert the appropriate number of dummy cells, with the same horizontal merging as in their top parts into row context.
+	 * @param trContext context of the row to insert dummies into
+	 * @param tcb current cell
+	 * @param backwards direction flag: if true, then scan to the left
+	 */
+	private void insertDummyVMergedCells(List<Object> trContext, TableCellBox tcb, boolean backwards) {
+
+		log.debug("Scanning cells from " + tcb.getRow() + ", " + tcb.getCol() + " to the " + (backwards ? "left" : "right") );
+
+		ArrayList<TableCellBox> adjCells = new ArrayList<TableCellBox>();
+		int numEffCols = tcb.getTable().numEffCols();
+
+		for ( int i = tcb.getCol(); i >= 0 && i < numEffCols; i += backwards ? -1 : 1 ) {
+
+			TableCellBox adjCell = tcb.getSection().cellAt(tcb.getRow(), i);
+
+			if ( adjCell == null ) {
+				// Check your table is OK
+				log.error("XHTML table import: Null adjCell for row " + tcb.getRow() + ", col " + tcb.getCol() + " at col " + i);
+				break;
+			}
+			if ( adjCell == tcb || adjCell == TableCellBox.SPANNING_CELL ) {
+				continue;
+			}
+			log.debug("Got adjCell, it is  " + adjCell.getRow() + ", " + adjCell.getCol());
+
+			if ( adjCell.getRow() < tcb.getRow()
+					&& adjCell.getStyle()!=null
+					&& adjCell.getStyle().getRowSpan()>1 ) {
+				// eg tcb is r2,c1 & adjCell is r1,c0
+				adjCells.add(adjCell);
+			} else {
+				break;
+			}
+		}
+
+		if ( backwards && !adjCells.isEmpty() ) {
+			Collections.reverse(adjCells);
+		}
+
+		for (TableCellBox adjCell : adjCells) {
+			Tc dummy = Context.getWmlObjectFactory().createTc();
+			trContext.add(dummy);
+
+			TcPr tcPr = Context.getWmlObjectFactory().createTcPr();
+			dummy.setTcPr(tcPr);
+
+			VMerge vm = Context.getWmlObjectFactory().createTcPrInnerVMerge();
+			//vm.setVal("continue");
+			tcPr.setVMerge(vm);
+
+			int colspan = adjCell.getStyle().getColSpan();
+			if (colspan > 1) {
+				GridSpan gs = Context.getWmlObjectFactory().createTcPrInnerGridSpan();
+				gs.setVal( BigInteger.valueOf(colspan));
+				tcPr.setGridSpan(gs);
+			}
+
+			this.setCellWidthAuto(tcPr);
+
+			// Must have an empty w:p
+			dummy.getContent().add( new P() );
+		}
+	}
+
+
+	/**
 	 * nested tables XHTML renderer seems to construct a tree: table/table
 	 * instead of table/tr/td/table?
 	 * TODO fix this upstream.
@@ -982,75 +992,71 @@ public class XHTMLImporter {
 		tcPr.setTcW(tblW);    	
     }
 
-	private void addImage(Element e)  {
-
-		byte[] imageBytes = null;
-		
-		if (e.getAttribute("src").startsWith("data:image" ) ) {
-			// Supports 
-			//   data:[<MIME-type>][;charset=<encoding>][;base64],<data>
-			// eg data:image/png;base64,iVBORw0KGgo...
-			// http://www.greywyvern.com/code/php/binary2base64 is a convenient online encoder
-			String base64String = e.getAttribute("src");
-			int commaPos = base64String.indexOf(",");
-			if (commaPos<6) { // or so ...
-				// .. its broken
-				org.docx4j.wml.R  run = Context.getWmlObjectFactory().createR();		
-				currentP.getContent().add(run);        
-
-				org.docx4j.wml.Text  text = Context.getWmlObjectFactory().createText();		
-				text.setValue("[INVALID DATA URI: " + e.getAttribute("src") );
-				
-				run.getContent().add(text);
-				
-			    paraStillEmpty = false;
-			    return;
-			}
-			base64String = base64String.substring( commaPos+1 );
-//			System.out.println(base64String);
-			try {
-				imageBytes = Base64.decodeBase64( base64String.getBytes("UTF8") );
-			} catch (UnsupportedEncodingException e1) {
-				// TODO Auto-generated catch block
-				e1.printStackTrace();
-			}			
-		} else {
-			Docx4jUserAgent docx4jUserAgent = renderer.getDocx4jUserAgent();
-			Docx4JFSImage docx4JFSImage = docx4jUserAgent.getDocx4JImageResource( e.getAttribute("src") );
-			imageBytes = docx4JFSImage.getBytes();			
-		}
-		
-				
-		BinaryPartAbstractImage imagePart;
-		Inline inline = null;
+		private void addImage(Element e) {
+		boolean isError = false;
 		try {
-			
-			imagePart = BinaryPartAbstractImage.createImagePart(
-					wordMLPackage, 
-					imageBytes);
-		    inline = imagePart.createImageInline( null, null, 0, 1, false);
+			byte[] imageBytes = null;
 
-			// Now add the inline in w:p/w:r/w:drawing
-			org.docx4j.wml.R  run = Context.getWmlObjectFactory().createR();		
-			currentP.getContent().add(run);        
-			org.docx4j.wml.Drawing drawing = Context.getWmlObjectFactory().createDrawing();		
-			run.getContent().add(drawing);		
-			drawing.getAnchorOrInline().add(inline);
-		    
+			if (e.getAttribute("src").startsWith("data:image")) {
+				// Supports 
+				//   data:[<MIME-type>][;charset=<encoding>][;base64],<data>
+				// eg data:image/png;base64,iVBORw0KGgo...
+				// http://www.greywyvern.com/code/php/binary2base64 is a convenient online encoder
+				String base64String = e.getAttribute("src");
+				int commaPos = base64String.indexOf(",");
+				if (commaPos < 6) { // or so ...
+					// .. its broken
+					org.docx4j.wml.R run = Context.getWmlObjectFactory().createR();
+					currentP.getContent().add(run);
+
+					org.docx4j.wml.Text text = Context.getWmlObjectFactory().createText();
+					text.setValue("[INVALID DATA URI: " + e.getAttribute("src"));
+
+					run.getContent().add(text);
+
+					paraStillEmpty = false;
+					return;
+				}
+				base64String = base64String.substring(commaPos + 1);
+				System.out.println(base64String);
+				imageBytes = Base64.decodeBase64(base64String.getBytes("UTF8"));
+			} else {
+				Docx4jUserAgent docx4jUserAgent = renderer.getDocx4jUserAgent();
+				Docx4JFSImage docx4JFSImage = docx4jUserAgent.getDocx4JImageResource(e.getAttribute("src"));
+				if (docx4JFSImage != null) {// in case of wrong URL - docx4JFSImage will be null
+					imageBytes = docx4JFSImage.getBytes();
+				}
+			}
+			if (imageBytes == null) {
+				isError = true;
+			} else {
+				BinaryPartAbstractImage imagePart = BinaryPartAbstractImage.createImagePart(wordMLPackage, imageBytes);
+				Inline inline = imagePart.createImageInline(null, null, 0, 1, false);
+
+				// Now add the inline in w:p/w:r/w:drawing
+				org.docx4j.wml.R run = Context.getWmlObjectFactory().createR();
+				currentP.getContent().add(run);
+				org.docx4j.wml.Drawing drawing = Context.getWmlObjectFactory().createDrawing();
+				run.getContent().add(drawing);
+				drawing.getAnchorOrInline().add(inline);
+			}
 		} catch (Exception e1) {
+			log.error(MessageFormat.format("Error during image processing: ''{0}'', insert default text.", new Object[] {e.getAttribute("alt")}), e1);
+			isError = true;
+		}
 
-			org.docx4j.wml.R  run = Context.getWmlObjectFactory().createR();		
-			currentP.getContent().add(run);        
+		if (isError) {
+			org.docx4j.wml.R run = Context.getWmlObjectFactory().createR();
+			currentP.getContent().add(run);
 
-			org.docx4j.wml.Text  text = Context.getWmlObjectFactory().createText();		
-			text.setValue("[MISSING IMAGE: " + e.getAttribute("src") );
-			
+			org.docx4j.wml.Text text = Context.getWmlObjectFactory().createText();
+			text.setValue("[MISSING IMAGE: " + e.getAttribute("alt") + " ]");
+
 			run.getContent().add(text);
-		}		        		
-		
-		
-	    paraStillEmpty = false;
-		
+		}
+
+		paraStillEmpty = false;
+
 	}
 
 	private void addNumbering(Element e, Map<String, CSSValue> cssMap) {

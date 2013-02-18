@@ -1,7 +1,7 @@
 /*
- *  Copyright 2010, Plutext Pty Ltd.
+ *  Copyright 2010-2013, Plutext Pty Ltd.
  *   
- *  This file is part of docx4j.
+ *  This file is part of xlsx4j, a component of docx4j.
 
     docx4j is licensed under the Apache License, Version 2.0 (the "License"); 
     you may not use this file except in compliance with the License. 
@@ -17,8 +17,6 @@
     limitations under the License.
 
  */
-
-
 package org.xlsx4j.sml;
 
 import javax.xml.bind.annotation.XmlEnum;
@@ -61,130 +59,40 @@ import javax.xml.bind.annotation.XmlType;
 @XmlEnum
 public enum STCfType {
 
-
-    /**
-     * Expression
-     * 
-     */
     @XmlEnumValue("expression")
     EXPRESSION("expression"),
-
-    /**
-     * Cell Is
-     * 
-     */
     @XmlEnumValue("cellIs")
     CELL_IS("cellIs"),
-
-    /**
-     * Color Scale
-     * 
-     */
     @XmlEnumValue("colorScale")
     COLOR_SCALE("colorScale"),
-
-    /**
-     * Data Bar
-     * 
-     */
     @XmlEnumValue("dataBar")
     DATA_BAR("dataBar"),
-
-    /**
-     * Icon Set
-     * 
-     */
     @XmlEnumValue("iconSet")
     ICON_SET("iconSet"),
-
-    /**
-     * Top 10
-     * 
-     */
     @XmlEnumValue("top10")
     TOP_10("top10"),
-
-    /**
-     * Unique Values
-     * 
-     */
     @XmlEnumValue("uniqueValues")
     UNIQUE_VALUES("uniqueValues"),
-
-    /**
-     * Duplicate Values
-     * 
-     */
     @XmlEnumValue("duplicateValues")
     DUPLICATE_VALUES("duplicateValues"),
-
-    /**
-     * Contains Text
-     * 
-     */
     @XmlEnumValue("containsText")
     CONTAINS_TEXT("containsText"),
-
-    /**
-     * Does Not Contain Text
-     * 
-     */
     @XmlEnumValue("notContainsText")
     NOT_CONTAINS_TEXT("notContainsText"),
-
-    /**
-     * Begins With
-     * 
-     */
     @XmlEnumValue("beginsWith")
     BEGINS_WITH("beginsWith"),
-
-    /**
-     * Ends With
-     * 
-     */
     @XmlEnumValue("endsWith")
     ENDS_WITH("endsWith"),
-
-    /**
-     * Contains Blanks
-     * 
-     */
     @XmlEnumValue("containsBlanks")
     CONTAINS_BLANKS("containsBlanks"),
-
-    /**
-     * Contains No Blanks
-     * 
-     */
     @XmlEnumValue("notContainsBlanks")
     NOT_CONTAINS_BLANKS("notContainsBlanks"),
-
-    /**
-     * Contains Errors
-     * 
-     */
     @XmlEnumValue("containsErrors")
     CONTAINS_ERRORS("containsErrors"),
-
-    /**
-     * Contains No Errors
-     * 
-     */
     @XmlEnumValue("notContainsErrors")
     NOT_CONTAINS_ERRORS("notContainsErrors"),
-
-    /**
-     * Time Period
-     * 
-     */
     @XmlEnumValue("timePeriod")
     TIME_PERIOD("timePeriod"),
-
-    /**
-     * Above or Below Average
-     * 
-     */
     @XmlEnumValue("aboveAverage")
     ABOVE_AVERAGE("aboveAverage");
     private final String value;

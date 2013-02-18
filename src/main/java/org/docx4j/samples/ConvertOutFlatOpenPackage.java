@@ -1,5 +1,5 @@
 /*
- *  Copyright 2007-2008, Plutext Pty Ltd.
+ *  Copyright 2007-2012, Plutext Pty Ltd.
  *   
  *  This file is part of docx4j.
 
@@ -22,15 +22,15 @@ package org.docx4j.samples;
 
 
 
-import java.io.FileOutputStream;
+import java.io.File;
 
 import org.docx4j.convert.out.flatOpcXml.FlatOpcXmlCreator;
-import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
+import org.docx4j.openpackaging.packages.OpcPackage;
 
 
 /**
- * Convert a docx to 'Flat OPC XML' format,
- * which Word can happily read, and which 
+ * Convert a docx/pptx/xlsx to 'Flat OPC XML' format,
+ * which Word/Powerpoint can happily read, and which 
  * is convenient for editing in an XML editor.
  * 
  * @author jharrop
@@ -50,21 +50,20 @@ public class ConvertOutFlatOpenPackage extends AbstractSample {
 		}
 		
 		// Do we want to save output? 
-		boolean save = false;
+		boolean save = true;
 		// If so, whereto?
 		outputfilepath = System.getProperty("user.dir") + "/OUT_ConvertOutFlatOpenPackage.xml";
 		
 		// Open a document from the file system
-		WordprocessingMLPackage wmlPackage = WordprocessingMLPackage.load(new java.io.File(inputfilepath));
+		OpcPackage wmlPackage = OpcPackage.load(new java.io.File(inputfilepath));
 		
-	   	// Create a org.docx4j.wml.Package object
-		FlatOpcXmlCreator worker = new FlatOpcXmlCreator(wmlPackage);
-    	
-		// .. marshall it 
 		if (save) {
-			worker.marshal(new FileOutputStream(outputfilepath));				
+			wmlPackage.save(new File(outputfilepath));
 			System.out.println( "\n\n .. written to " + outputfilepath);
 		} else {
+		   	// Create a org.docx4j.wml.Package object
+			FlatOpcXmlCreator worker = new FlatOpcXmlCreator(wmlPackage);
+
 			// Display its contents 
 			worker.marshal(System.out);				
 		}

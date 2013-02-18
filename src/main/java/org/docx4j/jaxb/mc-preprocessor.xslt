@@ -3,6 +3,9 @@
 
 	xmlns:java="http://xml.apache.org/xalan/java"
 	xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+	
+	xmlns:wordml2010="http://schemas.microsoft.com/office/word/2010/wordml"
+	xmlns:wordml201011="http://schemas.microsoft.com/office/word/2010/11/wordml"
 
 	version="1.0" exclude-result-prefixes="java">	
         
@@ -28,6 +31,17 @@
 		select="java:org.docx4j.utils.XSLTUtils.logWarn('Found some mc:AlternateContent')" />
 		
   	<xsl:choose>
+  	<!-- 
+  		<xsl:when test="mc:Choice[@Requires='v']">
+  		
+  			<xsl:variable name="message" 
+  				select="string('Selecting mc:Choice[@Requires=v]')" />  			
+			<xsl:variable name="logging" 
+				select="java:org.docx4j.utils.XSLTUtils.logWarn($message)" />
+				
+  			<xsl:copy-of select="mc:Choice[@Requires='v']/*"/>
+
+  		</xsl:when>   -->
   		<xsl:when test="mc:Fallback">
   		
   			<xsl:variable name="message" 
@@ -40,12 +54,16 @@
   		</xsl:when>
   		<xsl:otherwise> 
 			<xsl:variable name="logging" 
-				select="java:org.docx4j.utils.XSLTUtils.logWarn('Missing mc:Fallback!  What to do?')" />
-			<!--  Hope for the best.. -->
-  			<xsl:copy-of select="mc:Choice[1]/*"/>
+				select="java:org.docx4j.utils.XSLTUtils.logWarn('Missing mc:Fallback!  Dropping the mc:AlternateContent entirely.')" />
+			<!--   
+  			    <xsl:copy-of select="mc:Choice[1]/*"/>
+  			-->
   		</xsl:otherwise>  		
   	</xsl:choose>    
   </xsl:template>
 
+  <!--  Most JAXB implementations don't signal additional attributes as errors. -->
+  <xsl:template match="@wordml2010:*" />  
+  <xsl:template match="@wordml201011:*" />  
    
 </xsl:stylesheet>

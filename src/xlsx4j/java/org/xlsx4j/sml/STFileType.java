@@ -1,7 +1,7 @@
 /*
- *  Copyright 2010, Plutext Pty Ltd.
+ *  Copyright 2010-2013, Plutext Pty Ltd.
  *   
- *  This file is part of docx4j.
+ *  This file is part of xlsx4j, a component of docx4j.
 
     docx4j is licensed under the Apache License, Version 2.0 (the "License"); 
     you may not use this file except in compliance with the License. 
@@ -17,8 +17,6 @@
     limitations under the License.
 
  */
-
-
 package org.xlsx4j.sml;
 
 import javax.xml.bind.annotation.XmlEnum;
@@ -37,6 +35,8 @@ import javax.xml.bind.annotation.XmlType;
  *     &lt;enumeration value="mac"/>
  *     &lt;enumeration value="win"/>
  *     &lt;enumeration value="dos"/>
+ *     &lt;enumeration value="lin"/>
+ *     &lt;enumeration value="other"/>
  *   &lt;/restriction>
  * &lt;/simpleType>
  * </pre>
@@ -46,27 +46,16 @@ import javax.xml.bind.annotation.XmlType;
 @XmlEnum
 public enum STFileType {
 
-
-    /**
-     * Macintosh
-     * 
-     */
     @XmlEnumValue("mac")
     MAC("mac"),
-
-    /**
-     * Windows (ANSI)
-     * 
-     */
     @XmlEnumValue("win")
     WIN("win"),
-
-    /**
-     * DOS
-     * 
-     */
     @XmlEnumValue("dos")
-    DOS("dos");
+    DOS("dos"),
+    @XmlEnumValue("lin")
+    LIN("lin"),
+    @XmlEnumValue("other")
+    OTHER("other");
     private final String value;
 
     STFileType(String v) {

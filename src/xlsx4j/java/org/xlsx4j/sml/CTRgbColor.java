@@ -1,7 +1,7 @@
 /*
- *  Copyright 2010, Plutext Pty Ltd.
+ *  Copyright 2010-2013, Plutext Pty Ltd.
  *   
- *  This file is part of docx4j.
+ *  This file is part of xlsx4j, a component of docx4j.
 
     docx4j is licensed under the Apache License, Version 2.0 (the "License"); 
     you may not use this file except in compliance with the License. 
@@ -17,16 +17,17 @@
     limitations under the License.
 
  */
-
-
 package org.xlsx4j.sml;
 
+import javax.xml.bind.Unmarshaller;
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlAttribute;
+import javax.xml.bind.annotation.XmlTransient;
 import javax.xml.bind.annotation.XmlType;
 import javax.xml.bind.annotation.adapters.HexBinaryAdapter;
 import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
+import org.jvnet.jaxb2_commons.ppp.Child;
 
 
 /**
@@ -48,11 +49,14 @@ import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
  */
 @XmlAccessorType(XmlAccessType.FIELD)
 @XmlType(name = "CT_RgbColor")
-public class CTRgbColor {
+public class CTRgbColor implements Child
+{
 
-    @XmlAttribute
+    @XmlAttribute(name = "rgb")
     @XmlJavaTypeAdapter(HexBinaryAdapter.class)
     protected byte[] rgb;
+    @XmlTransient
+    private Object parent;
 
     /**
      * Gets the value of the rgb property.
@@ -75,7 +79,33 @@ public class CTRgbColor {
      *     
      */
     public void setRgb(byte[] value) {
-        this.rgb = ((byte[]) value);
+        this.rgb = value;
+    }
+
+    /**
+     * Gets the parent object in the object tree representing the unmarshalled xml document.
+     * 
+     * @return
+     *     The parent object.
+     */
+    public Object getParent() {
+        return this.parent;
+    }
+
+    public void setParent(Object parent) {
+        this.parent = parent;
+    }
+
+    /**
+     * This method is invoked by the JAXB implementation on each instance when unmarshalling completes.
+     * 
+     * @param parent
+     *     The parent object in the object tree.
+     * @param unmarshaller
+     *     The unmarshaller that generated the instance.
+     */
+    public void afterUnmarshal(Unmarshaller unmarshaller, Object parent) {
+        setParent(parent);
     }
 
 }

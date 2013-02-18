@@ -1,7 +1,7 @@
 /*
- *  Copyright 2010, Plutext Pty Ltd.
+ *  Copyright 2010-2013, Plutext Pty Ltd.
  *   
- *  This file is part of docx4j.
+ *  This file is part of xlsx4j, a component of docx4j.
 
     docx4j is licensed under the Apache License, Version 2.0 (the "License"); 
     you may not use this file except in compliance with the License. 
@@ -17,16 +17,17 @@
     limitations under the License.
 
  */
-
-
 package org.xlsx4j.sml;
 
 import java.util.ArrayList;
 import java.util.List;
+import javax.xml.bind.Unmarshaller;
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlElement;
+import javax.xml.bind.annotation.XmlTransient;
 import javax.xml.bind.annotation.XmlType;
+import org.jvnet.jaxb2_commons.ppp.Child;
 
 
 /**
@@ -62,6 +63,7 @@ import javax.xml.bind.annotation.XmlType;
  *         &lt;element name="drawing" type="{http://schemas.openxmlformats.org/spreadsheetml/2006/main}CT_Drawing" minOccurs="0"/>
  *         &lt;element name="legacyDrawing" type="{http://schemas.openxmlformats.org/spreadsheetml/2006/main}CT_LegacyDrawing" minOccurs="0"/>
  *         &lt;element name="legacyDrawingHF" type="{http://schemas.openxmlformats.org/spreadsheetml/2006/main}CT_LegacyDrawing" minOccurs="0"/>
+ *         &lt;element name="drawingHF" type="{http://schemas.openxmlformats.org/spreadsheetml/2006/main}CT_DrawingHF" minOccurs="0"/>
  *         &lt;element name="picture" type="{http://schemas.openxmlformats.org/spreadsheetml/2006/main}CT_SheetBackgroundPicture" minOccurs="0"/>
  *         &lt;element name="oleObjects" type="{http://schemas.openxmlformats.org/spreadsheetml/2006/main}CT_OleObjects" minOccurs="0"/>
  *         &lt;element name="extLst" type="{http://schemas.openxmlformats.org/spreadsheetml/2006/main}CT_ExtensionList" minOccurs="0"/>
@@ -98,11 +100,13 @@ import javax.xml.bind.annotation.XmlType;
     "drawing",
     "legacyDrawing",
     "legacyDrawingHF",
+    "drawingHF",
     "picture",
     "oleObjects",
     "extLst"
 })
-public class Macrosheet {
+public class Macrosheet implements Child
+{
 
     protected CTSheetPr sheetPr;
     protected CTSheetDimension dimension;
@@ -128,9 +132,12 @@ public class Macrosheet {
     protected CTDrawing drawing;
     protected CTLegacyDrawing legacyDrawing;
     protected CTLegacyDrawing legacyDrawingHF;
+    protected CTDrawingHF drawingHF;
     protected CTSheetBackgroundPicture picture;
     protected CTOleObjects oleObjects;
     protected CTExtensionList extLst;
+    @XmlTransient
+    private Object parent;
 
     /**
      * Gets the value of the sheetPr property.
@@ -695,6 +702,30 @@ public class Macrosheet {
     }
 
     /**
+     * Gets the value of the drawingHF property.
+     * 
+     * @return
+     *     possible object is
+     *     {@link CTDrawingHF }
+     *     
+     */
+    public CTDrawingHF getDrawingHF() {
+        return drawingHF;
+    }
+
+    /**
+     * Sets the value of the drawingHF property.
+     * 
+     * @param value
+     *     allowed object is
+     *     {@link CTDrawingHF }
+     *     
+     */
+    public void setDrawingHF(CTDrawingHF value) {
+        this.drawingHF = value;
+    }
+
+    /**
      * Gets the value of the picture property.
      * 
      * @return
@@ -764,6 +795,32 @@ public class Macrosheet {
      */
     public void setExtLst(CTExtensionList value) {
         this.extLst = value;
+    }
+
+    /**
+     * Gets the parent object in the object tree representing the unmarshalled xml document.
+     * 
+     * @return
+     *     The parent object.
+     */
+    public Object getParent() {
+        return this.parent;
+    }
+
+    public void setParent(Object parent) {
+        this.parent = parent;
+    }
+
+    /**
+     * This method is invoked by the JAXB implementation on each instance when unmarshalling completes.
+     * 
+     * @param parent
+     *     The parent object in the object tree.
+     * @param unmarshaller
+     *     The unmarshaller that generated the instance.
+     */
+    public void afterUnmarshal(Unmarshaller unmarshaller, Object parent) {
+        setParent(parent);
     }
 
 }

@@ -22,44 +22,44 @@ limitations under the License.
 ==================================================================== */
 
 
-import java.util.HashMap;
 import java.util.List;
 
 import org.apache.log4j.Logger;
-import org.docx4j.XmlUtils;
-import org.docx4j.convert.out.pdf.viaXSLFO.Conversion;
-import org.docx4j.convert.out.pdf.viaXSLFO.PartTracker;
-import org.docx4j.model.TransformState;
-import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
+import org.docx4j.openpackaging.exceptions.InvalidFormatException;
 import org.docx4j.openpackaging.parts.Part;
+import org.docx4j.openpackaging.parts.PartName;
 import org.docx4j.openpackaging.parts.WordprocessingML.FooterPart;
 import org.docx4j.openpackaging.parts.WordprocessingML.HeaderPart;
 import org.docx4j.openpackaging.parts.relationships.RelationshipsPart;
 import org.docx4j.wml.BooleanDefaultTrue;
 import org.docx4j.wml.CTRel;
-import org.docx4j.wml.Document;
 import org.docx4j.wml.FooterReference;
-import org.docx4j.wml.Ftr;
-import org.docx4j.wml.Hdr;
 import org.docx4j.wml.HdrFtrRef;
 import org.docx4j.wml.HeaderReference;
+import org.docx4j.wml.ObjectFactory;
 import org.docx4j.wml.SectPr;
-import org.w3c.dom.Node;
 
 public class HeaderFooterPolicy {
 
 	protected static Logger log = Logger.getLogger(HeaderFooterPolicy.class);	
 	
 	private HeaderPart firstHeaderActive;
-	private HeaderPart firstHeaderActual;  // Need this so it can be copied in next section, even if not used in this one
+	private HeaderPart firstHeader;  // Need this so it can be copied in next section, even if not used in this one
 	private FooterPart firstFooterActive;
-	private FooterPart firstFooterActual;
+	private FooterPart firstFooter;
 	
 	private HeaderPart evenHeader;
 	private FooterPart evenFooter;
 	
 	private HeaderPart defaultHeader;
 	private FooterPart defaultFooter;
+
+	//dummyHeader and dummyFooter are only used when evenAndOddHeaders == true.
+	//they should only be used in "read-mode" and never changed
+	//they are not added to the rels
+	private static Object dummyHeaderFooterMutex = new Object();
+	private static HeaderPart dummyHeader;
+	private static FooterPart dummyFooter;
 	
 	/* "same as previous" functionality:
 	 * 
@@ -92,8 +92,8 @@ public class HeaderFooterPolicy {
 	 *  and creates any header and footer objects
 	 *  as required.
 	 */
-	public HeaderFooterPolicy(SectPr sectPr, HeaderFooterPolicy previousHF,
-			RelationshipsPart rels) 
+	public HeaderFooterPolicy(SectPr sectPr, HeaderFooterPolicy previousHF, 
+			RelationshipsPart rels, BooleanDefaultTrue evenAndOddHeaders) 
 //		throws Exception
 		{
 		// Grab what headers and footers have been defined		
@@ -112,9 +112,9 @@ public class HeaderFooterPolicy {
 			setHeaderReferences(hdrFtrRefs, rels, titlePage );
 		} else {
 			// If not, get them from previousHF
-			firstHeaderActual   = previousHF.firstHeaderActual;
+			firstHeader   = previousHF.firstHeader;
 			if (titlePage!=null && titlePage.isVal() ) {
-				firstHeaderActive   = previousHF.firstHeaderActual;
+				firstHeaderActive   = previousHF.firstHeader;
 			}
 			defaultHeader = previousHF.defaultHeader;
 			evenHeader    =  previousHF.evenHeader; 
@@ -125,12 +125,92 @@ public class HeaderFooterPolicy {
 			setFooterReferences(hdrFtrRefs, rels, titlePage );
 		} else {
 			// If not, get them from previousHF
-			firstFooterActual   = previousHF.firstFooterActual;
+			firstFooter   = previousHF.firstFooter;
 			if (titlePage!=null && titlePage.isVal() ) {
-				firstFooterActive   = previousHF.firstFooterActual;
+				firstFooterActive   = previousHF.firstFooter;
 			}
 			defaultFooter = previousHF.defaultFooter;
 			evenFooter    =  previousHF.evenFooter; 
+		}
+		
+		if ((titlePage != null) && (titlePage.isVal())) {
+			if (firstHeaderActive == null) {
+				firstHeaderActive = getDummyHeader();
+			}
+			if (firstFooterActive == null) {
+				firstFooterActive = getDummyFooter();
+			}
+		}
+		
+		if (evenAndOddHeaders != null) {
+			if (evenAndOddHeaders.isVal()) {
+				//If there is only a default/odd header/footer present, then 
+				//the even header/footer is always a dummy empty header/footer
+				if (evenHeader == null) {
+					evenHeader = getDummyHeader();
+				}
+				if (evenFooter == null) {
+					evenFooter = getDummyFooter();
+				}
+			}
+			else {
+				//Any even header/footer will be ignored
+				//As the setting is on the document level it is not necessary to
+				//keep any defined header/footer for inheritance
+				evenHeader = null;
+				evenFooter = null;
+			}
+		}
+		else {
+			/* If there is an even and odd(default) Header but only a default Footer
+			 * then let the even Footer reference the default Footer.
+			 * Or if there is an even and odd(default) Footer but only a default Header
+			 * then let the even Header reference the default Header.
+			 * In Word the headers and footers are independent, but the xslfo-structure 
+			 * only knows about a simple page (with only default Header/Footers) or an 
+			 * even/odd page (with an even and an odd Header and Footer).
+			 */
+			
+			if ((evenHeader != null) && (defaultHeader != null) && (evenFooter == null)) {
+				evenFooter = defaultFooter;
+			}
+			else if ((evenFooter != null) && (defaultFooter != null) && (evenHeader == null)) {
+				evenHeader = defaultHeader;
+			}
+		}
+	}
+
+	private HeaderPart getDummyHeader() {
+		if (dummyHeader == null) {
+			createDummyHeaderFooter();
+		}
+		return dummyHeader;
+	}
+
+	private FooterPart getDummyFooter() {
+		if (dummyFooter == null) {
+			createDummyHeaderFooter();
+		}
+		return dummyFooter;
+	}
+	
+	
+
+	private void createDummyHeaderFooter() {
+		synchronized (dummyHeaderFooterMutex) {
+			if (dummyHeader == null) {
+				ObjectFactory factory = new ObjectFactory();
+				try {
+					dummyHeader = new HeaderPart(new PartName("/word/dummyheader.xml"));
+					dummyFooter = new FooterPart(new PartName("/word/dummyfooter.xml"));
+				} catch (InvalidFormatException e) {
+					//should not happen
+				}
+				dummyHeader.setJaxbElement(factory.createHdr());
+				dummyHeader.getJaxbElement().getContent().add(factory.createP());
+				dummyFooter.setJaxbElement(factory.createFtr());
+				dummyFooter.getJaxbElement().getContent().add(factory.createP());
+			}
 		}
 	}
 
@@ -164,7 +244,7 @@ public class HeaderFooterPolicy {
 				HeaderReference headerReference = (HeaderReference)rel;
 				
 				if (headerReference.getType() == HdrFtrRef.FIRST) {
-					firstHeaderActual = (HeaderPart)part;
+					firstHeader = (HeaderPart)part;
 					if (titlePage!=null && titlePage.isVal()) {
 						log.debug("setting first page header");
 						firstHeaderActive = (HeaderPart)part;
@@ -193,7 +273,7 @@ public class HeaderFooterPolicy {
 				FooterReference footerReference = (FooterReference)rel;
 				
 				if (footerReference.getType() == HdrFtrRef.FIRST) {
-					firstFooterActual = (FooterPart)part;
+					firstFooter = (FooterPart)part;
 					if (titlePage!=null && titlePage.isVal()) {								
 						log.debug("setting first page footer");
 						firstFooterActive = (FooterPart)part;
@@ -215,29 +295,21 @@ public class HeaderFooterPolicy {
 	public FooterPart getFirstFooter() {
 		return firstFooterActive;
 	}
-	/**
-	 * Returns the odd page header. This is
-	 *  also the same as the default one...
-	 */
-	public HeaderPart getOddHeader() {
-		return defaultHeader;
-	}
-	/**
-	 * Returns the odd page footer. This is
-	 *  also the same as the default one...
-	 */
-	public FooterPart getOddFooter() {
-		return defaultFooter;
-	}
 	public HeaderPart getEvenHeader() {
 		return evenHeader;
 	}
 	public FooterPart getEvenFooter() {
 		return evenFooter;
 	}
+	/** If an even header is present this is the odd header 
+	 *  otherwise it is both, even and odd header
+	 */
 	public HeaderPart getDefaultHeader() {
 		return defaultHeader;
 	}
+	/** If an even footer is present this is the odd footer 
+	 *  otherwise it is both, even and odd footer
+	 */
 	public FooterPart getDefaultFooter() {
 		return defaultFooter;
 	}
@@ -269,216 +341,6 @@ public class HeaderFooterPolicy {
 			return evenFooter;
 		}
 		return defaultFooter;
-	}
-	
-		
-	
-	// -------------------------------------------------------------
-	// XSLT extension functions, used by docx2fo.xslt
-	// and DocX2Html.xslt
-	
-	// Yuck! Getting rid of as many of these as possible ....
-	
-//	public static boolean hasFirstHeaderOrFooter(WordprocessingMLPackage wordmlPackage) {    		
-//		return (wordmlPackage.getHeaderFooterPolicy().getFirstHeader()==null && 
-//				wordmlPackage.getHeaderFooterPolicy().getFirstFooter() ==null? false : true);     		
-//	}
-//	public static boolean hasEvenOrOddHeaderOrFooter(WordprocessingMLPackage wordmlPackage) {    		
-//		return (wordmlPackage.getHeaderFooterPolicy().getOddHeader()==null && 
-//				wordmlPackage.getHeaderFooterPolicy().getOddFooter() ==null && 
-//				wordmlPackage.getHeaderFooterPolicy().getEvenHeader()==null && 
-//				wordmlPackage.getHeaderFooterPolicy().getEvenFooter() ==null? false : true);     		
-//	}
-//	public static boolean hasEvenHeaderOrFooter(WordprocessingMLPackage wordmlPackage) {    		
-//		return (wordmlPackage.getHeaderFooterPolicy().getEvenHeader()==null && 
-//				wordmlPackage.getHeaderFooterPolicy().getEvenFooter() ==null? false : true);     		
-//	}
-//	public static boolean hasOddHeaderOrFooter(WordprocessingMLPackage wordmlPackage) {    		
-//		return (wordmlPackage.getHeaderFooterPolicy().getOddHeader()==null && 
-//				wordmlPackage.getHeaderFooterPolicy().getOddFooter() ==null ? false : true);     		
-//	}
-	public static boolean hasDefaultHeaderOrFooter(WordprocessingMLPackage wordmlPackage, int sectionNumber) {    		
-		return (wordmlPackage.getDocumentModel().getSections().get(sectionNumber-1)
-				.getHeaderFooterPolicy().getDefaultHeader()==null && 
-				wordmlPackage.getDocumentModel().getSections().get(sectionNumber-1)
-				.getHeaderFooterPolicy().getDefaultFooter() ==null ? false : true);     		
-	}
-
-	public static boolean hasFirstHeader(WordprocessingMLPackage wordmlPackage, int sectionNumber) {
-		return (wordmlPackage.getDocumentModel().getSections().get(sectionNumber-1)
-				.getHeaderFooterPolicy().getFirstHeader() == null ? false
-				: true);
-	}
-
-//	public static boolean hasOddHeader(WordprocessingMLPackage wordmlPackage) {
-//		return (wordmlPackage.getHeaderFooterPolicy().getOddHeader() == null ? false
-//				: true);
-//	}
-
-	public static boolean hasEvenHeader(WordprocessingMLPackage wordmlPackage, int sectionNumber) {
-		return (wordmlPackage.getDocumentModel().getSections().get(sectionNumber-1)
-				.getHeaderFooterPolicy().getEvenHeader() == null ? false
-				: true);
-	}
-
-	public static boolean hasDefaultHeader(WordprocessingMLPackage wordmlPackage, int sectionNumber) {
-		return (wordmlPackage.getDocumentModel().getSections().get(sectionNumber-1)
-				.getHeaderFooterPolicy().getDefaultHeader() == null ? false
-				: true);
-	}
-
-	public static boolean hasFirstFooter(WordprocessingMLPackage wordmlPackage, int sectionNumber) {
-		return (wordmlPackage.getDocumentModel().getSections().get(sectionNumber-1)
-				.getHeaderFooterPolicy().getFirstFooter() == null ? false
-				: true);
-	}
-
-//	public static boolean hasOddFooter(WordprocessingMLPackage wordmlPackage) {
-//		return (wordmlPackage.getHeaderFooterPolicy().getOddFooter() == null ? false
-//				: true);
-//	}
-
-	public static boolean hasEvenFooter(WordprocessingMLPackage wordmlPackage, int sectionNumber) {
-		return (wordmlPackage.getDocumentModel().getSections().get(sectionNumber-1)
-				.getHeaderFooterPolicy().getEvenFooter() == null ? false
-				: true);
-	}
-
-	public static boolean hasDefaultFooter(WordprocessingMLPackage wordmlPackage, int sectionNumber) {
-		
-		log.debug("section number: " + sectionNumber);
-		
-		return (wordmlPackage.getDocumentModel().getSections().get(sectionNumber-1)
-				.getHeaderFooterPolicy().getDefaultFooter() == null ? false
-				: true);
-	}
-
-	public static Node getFirstHeader(WordprocessingMLPackage wordmlPackage, int sectionNumber) {
-
-		Hdr hdr = (Hdr) wordmlPackage.getDocumentModel().getSections().get(sectionNumber-1)
-		.getHeaderFooterPolicy()
-				.getFirstHeader().getJaxbElement();
-		return XmlUtils.marshaltoW3CDomDocument(hdr);
-
-	}
-
-	public static Node getFirstFooter(WordprocessingMLPackage wordmlPackage, int sectionNumber) {
-
-		Ftr ftr = (Ftr) wordmlPackage.getDocumentModel().getSections().get(sectionNumber-1)
-		.getHeaderFooterPolicy()
-				.getFirstFooter().getJaxbElement();
-		return XmlUtils.marshaltoW3CDomDocument(ftr);
-
-	}
-
-//	public static Node getOddHeader(WordprocessingMLPackage wordmlPackage) {
-//
-//		Hdr hdr = (Hdr) wordmlPackage.getHeaderFooterPolicy()
-//				.getOddHeader().getJaxbElement();
-//		return XmlUtils.marshaltoW3CDomDocument(hdr);
-//
-//	}
-//
-//	public static Node getOddFooter(WordprocessingMLPackage wordmlPackage) {
-//
-//		Ftr ftr = (Ftr) wordmlPackage.getHeaderFooterPolicy()
-//				.getOddFooter().getJaxbElement();
-//		return XmlUtils.marshaltoW3CDomDocument(ftr);
-//
-//	}
-
-	public static Node getEvenHeader(WordprocessingMLPackage wordmlPackage, int sectionNumber) {
-
-		Hdr hdr = (Hdr) wordmlPackage.getDocumentModel().getSections().get(sectionNumber-1)
-		.getHeaderFooterPolicy()
-				.getEvenHeader().getJaxbElement();
-		return XmlUtils.marshaltoW3CDomDocument(hdr);
-
-	}
-
-	public static Node getEvenFooter(WordprocessingMLPackage wordmlPackage, int sectionNumber) {
-
-		Ftr ftr = (Ftr) wordmlPackage.getDocumentModel().getSections().get(sectionNumber-1)
-		.getHeaderFooterPolicy()
-				.getEvenFooter().getJaxbElement();
-		return XmlUtils.marshaltoW3CDomDocument(ftr);
-
-	}
-
-	public static Node getDefaultHeader(WordprocessingMLPackage wordmlPackage, int sectionNumber) {		
-		
-		Hdr hdr = (Hdr) wordmlPackage.getDocumentModel().getSections().get(sectionNumber-1)
-		.getHeaderFooterPolicy()
-				.getDefaultHeader().getJaxbElement();
-		return XmlUtils.marshaltoW3CDomDocument(hdr);
-
-	}
-
-	public static Node getDefaultFooter(WordprocessingMLPackage wordmlPackage, int sectionNumber) {
-
-		Ftr ftr = (Ftr) wordmlPackage.getDocumentModel().getSections().get(sectionNumber-1)
-		.getHeaderFooterPolicy()
-				.getDefaultFooter().getJaxbElement();
-		return XmlUtils.marshaltoW3CDomDocument(ftr);
-
-	}
-
-	public static void inFirstHeader(WordprocessingMLPackage wordmlPackage,
-			HashMap<String, TransformState> modelStates, int sectionNumber) {
-		PartTracker.setPartTrackerState(wordmlPackage.getDocumentModel().getSections().get(sectionNumber-1)
-				.getHeaderFooterPolicy().getFirstHeader(),
-				modelStates);
-		// TODO: store current section in model states, and use it to get
-		// appropriate header/footer
-	}
-	
-//	public static void inOddHeader(WordprocessingMLPackage wordmlPackage,
-//			HashMap<String, TransformState> modelStates) {
-//		PartTracker.setPartTrackerState(wordmlPackage.getDocumentModel().getSections().get(sectionNumber-1)
-//				.getHeaderFooterPolicy().getOddHeader(),
-//				modelStates);
-//	}
-
-	public static void inEvenHeader(WordprocessingMLPackage wordmlPackage,
-			HashMap<String, TransformState> modelStates, int sectionNumber) {
-		PartTracker.setPartTrackerState(wordmlPackage.getDocumentModel().getSections().get(sectionNumber-1)
-				.getHeaderFooterPolicy().getEvenHeader(),
-				modelStates);
-	}
-
-	public static void inDefaultHeader(WordprocessingMLPackage wordmlPackage,
-			HashMap<String, TransformState> modelStates, int sectionNumber) {
-		PartTracker.setPartTrackerState(wordmlPackage.getDocumentModel().getSections().get(sectionNumber-1)
-				.getHeaderFooterPolicy().getDefaultHeader(),
-				modelStates);
-	}
-
-	public static void inFirstFooter(WordprocessingMLPackage wordmlPackage,
-			HashMap<String, TransformState> modelStates, int sectionNumber) {
-		PartTracker.setPartTrackerState(wordmlPackage.getDocumentModel().getSections().get(sectionNumber-1)
-				.getHeaderFooterPolicy().getFirstFooter(),
-				modelStates);
-	}
-
-//	public static void inOddFooter(WordprocessingMLPackage wordmlPackage,
-//			HashMap<String, TransformState> modelStates) {
-//		PartTracker.setPartTrackerState(wordmlPackage.getDocumentModel().getSections().get(sectionNumber-1)
-//				.getHeaderFooterPolicy().getOddFooter(),
-//				modelStates);
-//	}
-
-	public static void inEvenFooter(WordprocessingMLPackage wordmlPackage,
-			HashMap<String, TransformState> modelStates, int sectionNumber) {
-		PartTracker.setPartTrackerState(wordmlPackage.getDocumentModel().getSections().get(sectionNumber-1)
-				.getHeaderFooterPolicy().getEvenFooter(),
-				modelStates);
-	}
-
-	public static void inDefaultFooter(WordprocessingMLPackage wordmlPackage,
-			HashMap<String, TransformState> modelStates, int sectionNumber) {
-		PartTracker.setPartTrackerState(wordmlPackage.getDocumentModel().getSections().get(sectionNumber-1)
-				.getHeaderFooterPolicy().getDefaultFooter(),
-				modelStates);
 	}
 	
 }

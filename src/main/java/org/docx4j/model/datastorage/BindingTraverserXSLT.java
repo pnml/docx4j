@@ -30,6 +30,7 @@ import org.docx4j.model.sdt.QueryString;
 import org.docx4j.openpackaging.exceptions.Docx4JException;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
 import org.docx4j.openpackaging.parts.CustomXmlDataStoragePart;
+import org.docx4j.openpackaging.parts.CustomXmlPart;
 import org.docx4j.openpackaging.parts.JaxbXmlPart;
 import org.docx4j.openpackaging.parts.WordprocessingML.BinaryPartAbstractImage;
 import org.docx4j.openpackaging.parts.opendope.XPathsPart;
@@ -129,7 +130,7 @@ public class BindingTraverserXSLT implements BindingTraverserInterface {
 	public static DocumentFragment convertXHTML(
 			WordprocessingMLPackage pkg, 
 			JaxbXmlPart sourcePart,				
-			Map<String, CustomXmlDataStoragePart> customXmlDataStorageParts,
+			Map<String, CustomXmlPart> customXmlDataStorageParts,
 			//String storeItemId, String xpath, String prefixMappings,
 			XPathsPart xPathsPart,				
 			String sdtParent,
@@ -279,7 +280,7 @@ public class BindingTraverserXSLT implements BindingTraverserInterface {
 	public static DocumentFragment xpathGenerateRuns(
 			WordprocessingMLPackage pkg, 
 			JaxbXmlPart sourcePart,				
-			Map<String, CustomXmlDataStoragePart> customXmlDataStorageParts,
+			Map<String, CustomXmlPart> customXmlDataStorageParts,
 			String storeItemId, String xpath, String prefixMappings,
 			String sdtParent,
 			String contentChild,				
@@ -589,7 +590,7 @@ public class BindingTraverserXSLT implements BindingTraverserInterface {
 	public static DocumentFragment xpathGenerateRuns(
 			WordprocessingMLPackage pkg, 
 			JaxbXmlPart sourcePart,				
-			Map<String, CustomXmlDataStoragePart> customXmlDataStorageParts,
+			Map<String, CustomXmlPart> customXmlDataStorageParts,
 			XPathsPart xPathsPart,
 			String odTag, 
 			String sdtParent,
@@ -678,20 +679,22 @@ public class BindingTraverserXSLT implements BindingTraverserInterface {
 	
 	public static DocumentFragment xpathDate(WordprocessingMLPackage wmlPackage,
 			JaxbXmlPart sourcePart,
-			Map<String, CustomXmlDataStoragePart> customXmlDataStorageParts,
+			Map<String, CustomXmlPart> customXmlDataStorageParts,
 			String storeItemId, String xpath, String prefixMappings, 
 			String sdtParent,
 			String contentChild,
 			NodeIterator dateNodeIt) {
 		
-		CustomXmlDataStoragePart part = customXmlDataStorageParts.get(storeItemId.toLowerCase());
+		CustomXmlPart part = customXmlDataStorageParts.get(storeItemId.toLowerCase());
+		
+		
 		if (part==null) {
 			log.error("Couldn't locate part by storeItemId " + storeItemId);
 			return null;
 		}
 		
 		try {
-			String r = part.getData().xpathGetString(xpath, prefixMappings);
+			String r= part.xpathGetString(xpath, prefixMappings);				
 			log.debug(xpath + " yielded result " + r);
 			if (r==null) return nullResultParagraph(sdtParent, "[missing!]");
 			

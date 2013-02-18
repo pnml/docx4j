@@ -1,7 +1,7 @@
 /*
- *  Copyright 2010, Plutext Pty Ltd.
+ *  Copyright 2010-2013, Plutext Pty Ltd.
  *   
- *  This file is part of docx4j.
+ *  This file is part of xlsx4j, a component of docx4j.
 
     docx4j is licensed under the Apache License, Version 2.0 (the "License"); 
     you may not use this file except in compliance with the License. 
@@ -17,15 +17,16 @@
     limitations under the License.
 
  */
-
-
 package org.xlsx4j.sml;
 
+import javax.xml.bind.Unmarshaller;
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlSchemaType;
+import javax.xml.bind.annotation.XmlTransient;
 import javax.xml.bind.annotation.XmlType;
+import org.jvnet.jaxb2_commons.ppp.Child;
 
 
 /**
@@ -40,7 +41,7 @@ import javax.xml.bind.annotation.XmlType;
  *       &lt;attribute name="descending" type="{http://www.w3.org/2001/XMLSchema}boolean" default="false" />
  *       &lt;attribute name="sortBy" type="{http://schemas.openxmlformats.org/spreadsheetml/2006/main}ST_SortBy" default="value" />
  *       &lt;attribute name="ref" use="required" type="{http://schemas.openxmlformats.org/spreadsheetml/2006/main}ST_Ref" />
- *       &lt;attribute name="customList" type="{http://schemas.openxmlformats.org/spreadsheetml/2006/main}ST_Xstring" />
+ *       &lt;attribute name="customList" type="{http://schemas.openxmlformats.org/officeDocument/2006/sharedTypes}ST_Xstring" />
  *       &lt;attribute name="dxfId" type="{http://schemas.openxmlformats.org/spreadsheetml/2006/main}ST_DxfId" />
  *       &lt;attribute name="iconSet" type="{http://schemas.openxmlformats.org/spreadsheetml/2006/main}ST_IconSetType" default="3Arrows" />
  *       &lt;attribute name="iconId" type="{http://www.w3.org/2001/XMLSchema}unsignedInt" />
@@ -53,23 +54,26 @@ import javax.xml.bind.annotation.XmlType;
  */
 @XmlAccessorType(XmlAccessType.FIELD)
 @XmlType(name = "CT_SortCondition")
-public class CTSortCondition {
+public class CTSortCondition implements Child
+{
 
-    @XmlAttribute
+    @XmlAttribute(name = "descending")
     protected Boolean descending;
-    @XmlAttribute
+    @XmlAttribute(name = "sortBy")
     protected STSortBy sortBy;
-    @XmlAttribute(required = true)
+    @XmlAttribute(name = "ref", required = true)
     protected String ref;
-    @XmlAttribute
+    @XmlAttribute(name = "customList")
     protected String customList;
-    @XmlAttribute
+    @XmlAttribute(name = "dxfId")
     protected Long dxfId;
-    @XmlAttribute
+    @XmlAttribute(name = "iconSet")
     protected String iconSet;
-    @XmlAttribute
+    @XmlAttribute(name = "iconId")
     @XmlSchemaType(name = "unsignedInt")
     protected Long iconId;
+    @XmlTransient
+    private Object parent;
 
     /**
      * Gets the value of the descending property.
@@ -249,6 +253,32 @@ public class CTSortCondition {
      */
     public void setIconId(Long value) {
         this.iconId = value;
+    }
+
+    /**
+     * Gets the parent object in the object tree representing the unmarshalled xml document.
+     * 
+     * @return
+     *     The parent object.
+     */
+    public Object getParent() {
+        return this.parent;
+    }
+
+    public void setParent(Object parent) {
+        this.parent = parent;
+    }
+
+    /**
+     * This method is invoked by the JAXB implementation on each instance when unmarshalling completes.
+     * 
+     * @param parent
+     *     The parent object in the object tree.
+     * @param unmarshaller
+     *     The unmarshaller that generated the instance.
+     */
+    public void afterUnmarshal(Unmarshaller unmarshaller, Object parent) {
+        setParent(parent);
     }
 
 }

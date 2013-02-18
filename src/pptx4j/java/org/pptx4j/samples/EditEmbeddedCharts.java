@@ -26,8 +26,10 @@ import org.docx4j.openpackaging.parts.DrawingML.Chart;
 import org.docx4j.openpackaging.parts.SpreadsheetML.WorksheetPart;
 import org.docx4j.openpackaging.parts.WordprocessingML.EmbeddedPackagePart;
 import org.docx4j.utils.BufferUtil;
+import org.xlsx4j.sml.CTRst;
 import org.xlsx4j.sml.Cell;
 import org.xlsx4j.sml.Row;
+import org.xlsx4j.sml.STCellType;
 
 /**
  * Simple demonstration of editing charts in a PowerPoint deck
@@ -49,6 +51,13 @@ public class EditEmbeddedCharts
 		// Input file
 		String inputfilepath = System.getProperty("user.dir") + "/sample-docs/pptx/pptx-chart.pptx";
 		
+		// The names of the parts which will be edited
+		// Alter these to match what is in your input pptx
+		// .. the chart
+		String chartPartName = "/ppt/charts/chart1.xml";
+		// .. the xlsx
+		String xlsPartName = "/ppt/embeddings/Microsoft_Excel_Sheet1.xlsx";
+		
 		// Output file
 		String outputfilepath = System.getProperty("user.dir") 
 				+ "/OUT_EditEmbeddedCharts-" 
@@ -68,7 +77,7 @@ public class EditEmbeddedCharts
 		 * Get the Chart object and update the values. Afterwards, we'll update 
 		 * the associated spreadsheet so that the data is synchronized.
 		 */
-		Chart chart = (Chart) ppt.getParts().get(new PartName("/ppt/charts/chart1.xml"));
+		Chart chart = (Chart) ppt.getParts().get(new PartName(chartPartName));
 		
 		List<Object> objects = chart.getJaxbElement().getChart().getPlotArea()
 				.getAreaChartOrArea3DChartOrLineChart();
@@ -100,10 +109,13 @@ public class EditEmbeddedCharts
 		/*
 		 * Get the spreadsheet and find the cell values that need to be updated
 		 */
-		String xlsPartName = "/ppt/embeddings/Microsoft_Excel_Sheet1.xlsx";
 		
 		EmbeddedPackagePart epp  = (EmbeddedPackagePart) ppt
 			.getParts().get(new PartName(xlsPartName));
+		
+		if (epp==null) {
+			throw new Docx4JException("Could find EmbeddedPackagePart: " + xlsPartName);
+		}
 		
 		InputStream is = BufferUtil.newInputStream(epp.getBuffer());
 		
@@ -128,12 +140,14 @@ public class EditEmbeddedCharts
 						if (cell.getR().equals("B2") && cell.getV() != null) {
 							System.out.println("B2 CELL VAL: " + cell.getV());
 							// change the B2 cell value
+							cell.setT(STCellType.STR);
 							cell.setV(firstValue);
 						}
 						else if (cell.getR().equals("B3") && cell.getV() != null) {
 							System.out.println("B3 CELL VAL: " + cell.getV());
 							// Change the B3 cell value
-							cell.setV(secondValue); 
+							cell.setT(STCellType.STR);
+							cell.setV(secondValue);
 						}
 					}					
 				}
@@ -151,8 +165,6 @@ public class EditEmbeddedCharts
 
 		saver.save(baos);
 		epp.setBinaryData(baos.toByteArray());
-
-		ppt.addTargetPart(epp);
 
 		// Write the new file to disk
 		ppt.save(new java.io.File(outputfilepath));

@@ -24,6 +24,7 @@ package org.docx4j.openpackaging.packages;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -45,6 +46,7 @@ import org.apache.poi.poifs.crypt.EncryptionInfo;
 import org.apache.poi.poifs.filesystem.POIFSFileSystem;
 import org.docx4j.TextUtils;
 import org.docx4j.XmlUtils;
+import org.docx4j.convert.in.FlatOpcXmlImporter;
 import org.docx4j.convert.out.flatOpcXml.FlatOpcXmlCreator;
 import org.docx4j.docProps.core.dc.elements.SimpleLiteral;
 import org.docx4j.jaxb.Context;
@@ -55,7 +57,12 @@ import org.docx4j.openpackaging.exceptions.Docx4JException;
 import org.docx4j.openpackaging.exceptions.InvalidFormatException;
 import org.docx4j.openpackaging.io.LoadFromZipNG;
 import org.docx4j.openpackaging.io.SaveToZipFile;
+import org.docx4j.openpackaging.io3.Load3;
+import org.docx4j.openpackaging.io3.Save;
+import org.docx4j.openpackaging.io3.stores.PartStore;
+import org.docx4j.openpackaging.io3.stores.ZipPartStore;
 import org.docx4j.openpackaging.parts.CustomXmlDataStoragePart;
+import org.docx4j.openpackaging.parts.CustomXmlPart;
 import org.docx4j.openpackaging.parts.DocPropsCorePart;
 import org.docx4j.openpackaging.parts.DocPropsCustomPart;
 import org.docx4j.openpackaging.parts.DocPropsExtendedPart;
@@ -110,9 +117,9 @@ public class OpcPackage extends Base {
 		return externalResources;		
 	}	
 	
-	protected HashMap<String, CustomXmlDataStoragePart> customXmlDataStorageParts
-		= new HashMap<String, CustomXmlDataStoragePart>(); // NB key is lowercase
-	public HashMap<String, CustomXmlDataStoragePart> getCustomXmlDataStorageParts() {
+	protected HashMap<String, CustomXmlPart> customXmlDataStorageParts
+		= new HashMap<String, CustomXmlPart>(); // NB key is lowercase
+	public HashMap<String, CustomXmlPart> getCustomXmlDataStorageParts() {
 		return customXmlDataStorageParts;
 	}	
 	
@@ -126,7 +133,24 @@ public class OpcPackage extends Base {
 		this.contentTypeManager = contentTypeManager;
 	}
 	
+	private PartStore partStore;	
 	
+	/**
+	 * @return the partStore
+	 * @since 3.0.
+	 */
+	public PartStore getPartStore() {
+		return partStore;
+	}
+
+	/**
+	 * @param partStore the partStore to set
+	 * @since 3.0.
+	 */
+	public void setPartStore(PartStore partStore) {
+		this.partStore = partStore;
+	}
+
 	/**
 	 * Constructor.  Also creates a new content type manager
 	 * 
@@ -287,7 +311,8 @@ public class OpcPackage extends Base {
 	 */
 	public static OpcPackage load(final InputStream is, Filetype type) throws Docx4JException {
 		return load(is, type, null);
-	}	
+	}
+	
 	/**
 	 * convenience method to load a word2007 document 
 	 * from an existing inputstream (.docx/.docxm, .ppxtx or Flat OPC .xml).
@@ -300,10 +325,18 @@ public class OpcPackage extends Base {
 	 * @Since 2.8.0           
 	 */
 	public static OpcPackage load(final InputStream is, Filetype type, String password) throws Docx4JException {
+		
 		if (type.equals(Filetype.ZippedPackage)){
-			final LoadFromZipNG loader = new LoadFromZipNG();
-			return loader.get(is);
+			
+			final ZipPartStore partLoader = new ZipPartStore(is);
+			final Load3 loader = new Load3(partLoader);
+			return loader.get();
+			
+//			final LoadFromZipNG loader = new LoadFromZipNG();
+//			return loader.get(is);			
+			
 		} else if (type.equals(Filetype.Compound)){
+			
 	        try {
 				POIFSFileSystem fs = new POIFSFileSystem(is);
 				EncryptionInfo info = new EncryptionInfo(fs); 
@@ -333,61 +366,43 @@ public class OpcPackage extends Base {
 			}  			
 		}
 		
-		org.docx4j.convert.in.FlatOpcXmlImporter xmlPackage;
 		try {
-			final Unmarshaller u = Context.jcXmlPackage.createUnmarshaller();
-			u.setEventHandler(new org.docx4j.jaxb.JaxbValidationEventHandler());
-
-//			final org.docx4j.xmlPackage.Package wmlPackageEl = (org.docx4j.xmlPackage.Package)((JAXBElement)u.unmarshal(
-//					new javax.xml.transform.stream.StreamSource(is))).getValue(); 
-
-			// JAXB RI unmarshalls to JAXBElement; MOXy gives Package directly
-			final org.docx4j.xmlPackage.Package wmlPackageEl = (org.docx4j.xmlPackage.Package)XmlUtils.unwrap(u.unmarshal(
-					new javax.xml.transform.stream.StreamSource(is))); 
-			
-			xmlPackage = new org.docx4j.convert.in.FlatOpcXmlImporter( wmlPackageEl);
+			FlatOpcXmlImporter xmlPackage = new FlatOpcXmlImporter(is); 
+			return xmlPackage.get(); 
 		} catch (final Exception e) {
 			OpcPackage.log.error(e);
 			throw new Docx4JException("Couldn't load xml from stream ",e);
 		} 
-		return xmlPackage.get(); 
 	}
 
 	/**
 	 * Convenience method to save a WordprocessingMLPackage
 	 * or PresentationMLPackage to a File.
      *
-	 * @param docxFile
+	 * @param file
 	 *            The docx file 
 	 */	
-	public void save(java.io.File docxFile) throws Docx4JException {
-		save(docxFile, null);
+	public void save(java.io.File file) throws Docx4JException {
+		save(file, null);
 	}	
 	/**
 	 * Convenience method to save a WordprocessingMLPackage
 	 * or PresentationMLPackage to a File.
      *
-	 * @param docxFile
+	 * @param file
 	 *            The docx file 
 	 */	
-	private void save(java.io.File docxFile, String password) throws Docx4JException {
+	private void save(java.io.File file, String password) throws Docx4JException {
 
-		if (docxFile.getName().endsWith(".xml")) {
+		if (file.getName().endsWith(".xml")) {
 			
 		   	// Create a org.docx4j.wml.Package object
 			FlatOpcXmlCreator worker = new FlatOpcXmlCreator(this);
 			org.docx4j.xmlPackage.Package pkg = worker.get();
 	    	
 	    	// Now marshall it
-			JAXBContext jc = Context.jcXmlPackage;
 			try {
-				Marshaller marshaller=jc.createMarshaller();
-				
-				marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, Boolean.TRUE);
-				NamespacePrefixMapperUtils.setProperty(marshaller, 
-						NamespacePrefixMapperUtils.getPrefixMapper());			
-				
-				marshaller.marshal(pkg, new FileOutputStream(docxFile));
+				worker.marshal(new FileOutputStream(file));
 			} catch (Exception e) {
 				throw new Docx4JException("Error saving Flat OPC XML", e);
 			}	
@@ -395,8 +410,17 @@ public class OpcPackage extends Base {
 		}
 		
 		if (password==null) {
-			SaveToZipFile saver = new SaveToZipFile(this); 
-			saver.save(docxFile);
+			
+//			SaveToZipFile saver = new SaveToZipFile(this); 
+//			saver.save(file);
+			
+			Save saver = new Save(this); 
+			try {
+				saver.save(new FileOutputStream(file));
+			} catch (FileNotFoundException e) {
+				throw new Docx4JException("Couldn't save " + file.getPath(), e);
+			}
+			
 		} else {
 			// Create the compound file
 	        try {

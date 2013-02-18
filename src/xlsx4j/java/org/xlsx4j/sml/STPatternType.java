@@ -1,7 +1,7 @@
 /*
- *  Copyright 2010, Plutext Pty Ltd.
+ *  Copyright 2010-2013, Plutext Pty Ltd.
  *   
- *  This file is part of docx4j.
+ *  This file is part of xlsx4j, a component of docx4j.
 
     docx4j is licensed under the Apache License, Version 2.0 (the "License"); 
     you may not use this file except in compliance with the License. 
@@ -17,8 +17,6 @@
     limitations under the License.
 
  */
-
-
 package org.xlsx4j.sml;
 
 import javax.xml.bind.annotation.XmlEnum;
@@ -62,137 +60,42 @@ import javax.xml.bind.annotation.XmlType;
 @XmlEnum
 public enum STPatternType {
 
-
-    /**
-     * None
-     * 
-     */
     @XmlEnumValue("none")
     NONE("none"),
-
-    /**
-     * Solid
-     * 
-     */
     @XmlEnumValue("solid")
     SOLID("solid"),
-
-    /**
-     * Medium Gray
-     * 
-     */
     @XmlEnumValue("mediumGray")
     MEDIUM_GRAY("mediumGray"),
-
-    /**
-     * Dary Gray
-     * 
-     */
     @XmlEnumValue("darkGray")
     DARK_GRAY("darkGray"),
-
-    /**
-     * Light Gray
-     * 
-     */
     @XmlEnumValue("lightGray")
     LIGHT_GRAY("lightGray"),
-
-    /**
-     * Dark Horizontal
-     * 
-     */
     @XmlEnumValue("darkHorizontal")
     DARK_HORIZONTAL("darkHorizontal"),
-
-    /**
-     * Dark Vertical
-     * 
-     */
     @XmlEnumValue("darkVertical")
     DARK_VERTICAL("darkVertical"),
-
-    /**
-     * Dark Down
-     * 
-     */
     @XmlEnumValue("darkDown")
     DARK_DOWN("darkDown"),
-
-    /**
-     * Dark Up
-     * 
-     */
     @XmlEnumValue("darkUp")
     DARK_UP("darkUp"),
-
-    /**
-     * Dark Grid
-     * 
-     */
     @XmlEnumValue("darkGrid")
     DARK_GRID("darkGrid"),
-
-    /**
-     * Dark Trellis
-     * 
-     */
     @XmlEnumValue("darkTrellis")
     DARK_TRELLIS("darkTrellis"),
-
-    /**
-     * Light Horizontal
-     * 
-     */
     @XmlEnumValue("lightHorizontal")
     LIGHT_HORIZONTAL("lightHorizontal"),
-
-    /**
-     * Light Vertical
-     * 
-     */
     @XmlEnumValue("lightVertical")
     LIGHT_VERTICAL("lightVertical"),
-
-    /**
-     * Light Down
-     * 
-     */
     @XmlEnumValue("lightDown")
     LIGHT_DOWN("lightDown"),
-
-    /**
-     * Light Up
-     * 
-     */
     @XmlEnumValue("lightUp")
     LIGHT_UP("lightUp"),
-
-    /**
-     * Light Grid
-     * 
-     */
     @XmlEnumValue("lightGrid")
     LIGHT_GRID("lightGrid"),
-
-    /**
-     * Light Trellis
-     * 
-     */
     @XmlEnumValue("lightTrellis")
     LIGHT_TRELLIS("lightTrellis"),
-
-    /**
-     * Gray 0.125
-     * 
-     */
     @XmlEnumValue("gray125")
     GRAY_125("gray125"),
-
-    /**
-     * Gray 0.0625
-     * 
-     */
     @XmlEnumValue("gray0625")
     GRAY_0625("gray0625");
     private final String value;

@@ -1,7 +1,7 @@
 /*
- *  Copyright 2010, Plutext Pty Ltd.
+ *  Copyright 2010-2013, Plutext Pty Ltd.
  *   
- *  This file is part of docx4j.
+ *  This file is part of xlsx4j, a component of docx4j.
 
     docx4j is licensed under the Apache License, Version 2.0 (the "License"); 
     you may not use this file except in compliance with the License. 
@@ -17,8 +17,6 @@
     limitations under the License.
 
  */
-
-
 package org.xlsx4j.sml;
 
 import javax.xml.bind.annotation.XmlEnum;
@@ -57,102 +55,32 @@ import javax.xml.bind.annotation.XmlType;
 @XmlEnum
 public enum STBorderStyle {
 
-
-    /**
-     * None
-     * 
-     */
     @XmlEnumValue("none")
     NONE("none"),
-
-    /**
-     * Thin Border
-     * 
-     */
     @XmlEnumValue("thin")
     THIN("thin"),
-
-    /**
-     * Medium Border
-     * 
-     */
     @XmlEnumValue("medium")
     MEDIUM("medium"),
-
-    /**
-     * Dashed
-     * 
-     */
     @XmlEnumValue("dashed")
     DASHED("dashed"),
-
-    /**
-     * Dotted
-     * 
-     */
     @XmlEnumValue("dotted")
     DOTTED("dotted"),
-
-    /**
-     * Thick Line Border
-     * 
-     */
     @XmlEnumValue("thick")
     THICK("thick"),
-
-    /**
-     * Double Line
-     * 
-     */
     @XmlEnumValue("double")
     DOUBLE("double"),
-
-    /**
-     * Hairline Border
-     * 
-     */
     @XmlEnumValue("hair")
     HAIR("hair"),
-
-    /**
-     * Medium Dashed
-     * 
-     */
     @XmlEnumValue("mediumDashed")
     MEDIUM_DASHED("mediumDashed"),
-
-    /**
-     * Dash Dot
-     * 
-     */
     @XmlEnumValue("dashDot")
     DASH_DOT("dashDot"),
-
-    /**
-     * Medium Dash Dot
-     * 
-     */
     @XmlEnumValue("mediumDashDot")
     MEDIUM_DASH_DOT("mediumDashDot"),
-
-    /**
-     * Dash Dot Dot
-     * 
-     */
     @XmlEnumValue("dashDotDot")
     DASH_DOT_DOT("dashDotDot"),
-
-    /**
-     * Medium Dash Dot Dot
-     * 
-     */
     @XmlEnumValue("mediumDashDotDot")
     MEDIUM_DASH_DOT_DOT("mediumDashDotDot"),
-
-    /**
-     * Slant Dash Dot
-     * 
-     */
     @XmlEnumValue("slantDashDot")
     SLANT_DASH_DOT("slantDashDot");
     private final String value;

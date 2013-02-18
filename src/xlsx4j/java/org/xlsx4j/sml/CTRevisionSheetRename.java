@@ -1,7 +1,7 @@
 /*
- *  Copyright 2010, Plutext Pty Ltd.
+ *  Copyright 2010-2013, Plutext Pty Ltd.
  *   
- *  This file is part of docx4j.
+ *  This file is part of xlsx4j, a component of docx4j.
 
     docx4j is licensed under the Apache License, Version 2.0 (the "License"); 
     you may not use this file except in compliance with the License. 
@@ -17,15 +17,16 @@
     limitations under the License.
 
  */
-
-
 package org.xlsx4j.sml;
 
+import javax.xml.bind.Unmarshaller;
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlSchemaType;
+import javax.xml.bind.annotation.XmlTransient;
 import javax.xml.bind.annotation.XmlType;
+import org.jvnet.jaxb2_commons.ppp.Child;
 
 
 /**
@@ -42,8 +43,8 @@ import javax.xml.bind.annotation.XmlType;
  *       &lt;/sequence>
  *       &lt;attGroup ref="{http://schemas.openxmlformats.org/spreadsheetml/2006/main}AG_RevData"/>
  *       &lt;attribute name="sheetId" use="required" type="{http://www.w3.org/2001/XMLSchema}unsignedInt" />
- *       &lt;attribute name="oldName" use="required" type="{http://schemas.openxmlformats.org/spreadsheetml/2006/main}ST_Xstring" />
- *       &lt;attribute name="newName" use="required" type="{http://schemas.openxmlformats.org/spreadsheetml/2006/main}ST_Xstring" />
+ *       &lt;attribute name="oldName" use="required" type="{http://schemas.openxmlformats.org/officeDocument/2006/sharedTypes}ST_Xstring" />
+ *       &lt;attribute name="newName" use="required" type="{http://schemas.openxmlformats.org/officeDocument/2006/sharedTypes}ST_Xstring" />
  *     &lt;/restriction>
  *   &lt;/complexContent>
  * &lt;/complexType>
@@ -55,23 +56,26 @@ import javax.xml.bind.annotation.XmlType;
 @XmlType(name = "CT_RevisionSheetRename", propOrder = {
     "extLst"
 })
-public class CTRevisionSheetRename {
+public class CTRevisionSheetRename implements Child
+{
 
     protected CTExtensionList extLst;
-    @XmlAttribute(required = true)
+    @XmlAttribute(name = "sheetId", required = true)
     @XmlSchemaType(name = "unsignedInt")
     protected long sheetId;
-    @XmlAttribute(required = true)
+    @XmlAttribute(name = "oldName", required = true)
     protected String oldName;
-    @XmlAttribute(required = true)
+    @XmlAttribute(name = "newName", required = true)
     protected String newName;
-    @XmlAttribute(required = true)
+    @XmlAttribute(name = "rId", required = true)
     @XmlSchemaType(name = "unsignedInt")
     protected long rId;
-    @XmlAttribute
+    @XmlAttribute(name = "ua")
     protected Boolean ua;
-    @XmlAttribute
+    @XmlAttribute(name = "ra")
     protected Boolean ra;
+    @XmlTransient
+    private Object parent;
 
     /**
      * Gets the value of the extLst property.
@@ -231,6 +235,32 @@ public class CTRevisionSheetRename {
      */
     public void setRa(Boolean value) {
         this.ra = value;
+    }
+
+    /**
+     * Gets the parent object in the object tree representing the unmarshalled xml document.
+     * 
+     * @return
+     *     The parent object.
+     */
+    public Object getParent() {
+        return this.parent;
+    }
+
+    public void setParent(Object parent) {
+        this.parent = parent;
+    }
+
+    /**
+     * This method is invoked by the JAXB implementation on each instance when unmarshalling completes.
+     * 
+     * @param parent
+     *     The parent object in the object tree.
+     * @param unmarshaller
+     *     The unmarshaller that generated the instance.
+     */
+    public void afterUnmarshal(Unmarshaller unmarshaller, Object parent) {
+        setParent(parent);
     }
 
 }

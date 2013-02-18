@@ -1,7 +1,7 @@
 /*
- *  Copyright 2010, Plutext Pty Ltd.
+ *  Copyright 2010-2013, Plutext Pty Ltd.
  *   
- *  This file is part of docx4j.
+ *  This file is part of xlsx4j, a component of docx4j.
 
     docx4j is licensed under the Apache License, Version 2.0 (the "License"); 
     you may not use this file except in compliance with the License. 
@@ -17,17 +17,19 @@
     limitations under the License.
 
  */
-
-
 package org.xlsx4j.sml;
 
+import javax.xml.bind.Unmarshaller;
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlSchemaType;
+import javax.xml.bind.annotation.XmlTransient;
 import javax.xml.bind.annotation.XmlType;
+import javax.xml.datatype.XMLGregorianCalendar;
+import org.jvnet.jaxb2_commons.ppp.Child;
 
 
 /**
@@ -58,8 +60,9 @@ import javax.xml.bind.annotation.XmlType;
  *       &lt;attribute name="refreshOnLoad" type="{http://www.w3.org/2001/XMLSchema}boolean" default="false" />
  *       &lt;attribute name="optimizeMemory" type="{http://www.w3.org/2001/XMLSchema}boolean" default="false" />
  *       &lt;attribute name="enableRefresh" type="{http://www.w3.org/2001/XMLSchema}boolean" default="true" />
- *       &lt;attribute name="refreshedBy" type="{http://schemas.openxmlformats.org/spreadsheetml/2006/main}ST_Xstring" />
+ *       &lt;attribute name="refreshedBy" type="{http://schemas.openxmlformats.org/officeDocument/2006/sharedTypes}ST_Xstring" />
  *       &lt;attribute name="refreshedDate" type="{http://www.w3.org/2001/XMLSchema}double" />
+ *       &lt;attribute name="refreshedDateIso" type="{http://www.w3.org/2001/XMLSchema}dateTime" />
  *       &lt;attribute name="backgroundQuery" type="{http://www.w3.org/2001/XMLSchema}boolean" default="false" />
  *       &lt;attribute name="missingItemsLimit" type="{http://www.w3.org/2001/XMLSchema}unsignedInt" />
  *       &lt;attribute name="createdVersion" type="{http://www.w3.org/2001/XMLSchema}unsignedByte" default="0" />
@@ -92,7 +95,8 @@ import javax.xml.bind.annotation.XmlType;
     "extLst"
 })
 @XmlRootElement(name = "pivotCacheDefinition")
-public class CTPivotCacheDefinition {
+public class CTPivotCacheDefinition implements Child
+{
 
     @XmlElement(required = true)
     protected CTCacheSource cacheSource;
@@ -107,47 +111,52 @@ public class CTPivotCacheDefinition {
     protected CTMeasureGroups measureGroups;
     protected CTMeasureDimensionMaps maps;
     protected CTExtensionList extLst;
-    @XmlAttribute(namespace = "http://schemas.openxmlformats.org/officeDocument/2006/relationships")
+    @XmlAttribute(name = "id", namespace = "http://schemas.openxmlformats.org/officeDocument/2006/relationships")
     protected String id;
-    @XmlAttribute
+    @XmlAttribute(name = "invalid")
     protected Boolean invalid;
-    @XmlAttribute
+    @XmlAttribute(name = "saveData")
     protected Boolean saveData;
-    @XmlAttribute
+    @XmlAttribute(name = "refreshOnLoad")
     protected Boolean refreshOnLoad;
-    @XmlAttribute
+    @XmlAttribute(name = "optimizeMemory")
     protected Boolean optimizeMemory;
-    @XmlAttribute
+    @XmlAttribute(name = "enableRefresh")
     protected Boolean enableRefresh;
-    @XmlAttribute
+    @XmlAttribute(name = "refreshedBy")
     protected String refreshedBy;
-    @XmlAttribute
+    @XmlAttribute(name = "refreshedDate")
     protected Double refreshedDate;
-    @XmlAttribute
+    @XmlAttribute(name = "refreshedDateIso")
+    @XmlSchemaType(name = "dateTime")
+    protected XMLGregorianCalendar refreshedDateIso;
+    @XmlAttribute(name = "backgroundQuery")
     protected Boolean backgroundQuery;
-    @XmlAttribute
+    @XmlAttribute(name = "missingItemsLimit")
     @XmlSchemaType(name = "unsignedInt")
     protected Long missingItemsLimit;
-    @XmlAttribute
+    @XmlAttribute(name = "createdVersion")
     @XmlSchemaType(name = "unsignedByte")
     protected Short createdVersion;
-    @XmlAttribute
+    @XmlAttribute(name = "refreshedVersion")
     @XmlSchemaType(name = "unsignedByte")
     protected Short refreshedVersion;
-    @XmlAttribute
+    @XmlAttribute(name = "minRefreshableVersion")
     @XmlSchemaType(name = "unsignedByte")
     protected Short minRefreshableVersion;
-    @XmlAttribute
+    @XmlAttribute(name = "recordCount")
     @XmlSchemaType(name = "unsignedInt")
     protected Long recordCount;
-    @XmlAttribute
+    @XmlAttribute(name = "upgradeOnRefresh")
     protected Boolean upgradeOnRefresh;
     @XmlAttribute(name = "tupleCache")
     protected Boolean tupleCacheQ;
-    @XmlAttribute
+    @XmlAttribute(name = "supportSubquery")
     protected Boolean supportSubquery;
-    @XmlAttribute
+    @XmlAttribute(name = "supportAdvancedDrill")
     protected Boolean supportAdvancedDrill;
+    @XmlTransient
+    private Object parent;
 
     /**
      * Gets the value of the cacheSource property.
@@ -414,7 +423,7 @@ public class CTPivotCacheDefinition {
     }
 
     /**
-     * Relationship Identifier
+     * Gets the value of the id property.
      * 
      * @return
      *     possible object is
@@ -623,6 +632,30 @@ public class CTPivotCacheDefinition {
      */
     public void setRefreshedDate(Double value) {
         this.refreshedDate = value;
+    }
+
+    /**
+     * Gets the value of the refreshedDateIso property.
+     * 
+     * @return
+     *     possible object is
+     *     {@link XMLGregorianCalendar }
+     *     
+     */
+    public XMLGregorianCalendar getRefreshedDateIso() {
+        return refreshedDateIso;
+    }
+
+    /**
+     * Sets the value of the refreshedDateIso property.
+     * 
+     * @param value
+     *     allowed object is
+     *     {@link XMLGregorianCalendar }
+     *     
+     */
+    public void setRefreshedDateIso(XMLGregorianCalendar value) {
+        this.refreshedDateIso = value;
     }
 
     /**
@@ -895,6 +928,32 @@ public class CTPivotCacheDefinition {
      */
     public void setSupportAdvancedDrill(Boolean value) {
         this.supportAdvancedDrill = value;
+    }
+
+    /**
+     * Gets the parent object in the object tree representing the unmarshalled xml document.
+     * 
+     * @return
+     *     The parent object.
+     */
+    public Object getParent() {
+        return this.parent;
+    }
+
+    public void setParent(Object parent) {
+        this.parent = parent;
+    }
+
+    /**
+     * This method is invoked by the JAXB implementation on each instance when unmarshalling completes.
+     * 
+     * @param parent
+     *     The parent object in the object tree.
+     * @param unmarshaller
+     *     The unmarshaller that generated the instance.
+     */
+    public void afterUnmarshal(Unmarshaller unmarshaller, Object parent) {
+        setParent(parent);
     }
 
 }

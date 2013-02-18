@@ -23,26 +23,23 @@ package org.docx4j.model.table;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Vector;
 
+import javax.xml.bind.JAXBElement;
+import javax.xml.bind.JAXBException;
 import javax.xml.transform.TransformerException;
 
 import org.apache.log4j.Logger;
 import org.docx4j.TraversalUtil;
-import org.docx4j.XmlUtils;
 import org.docx4j.TraversalUtil.CallbackImpl;
+import org.docx4j.XmlUtils;
 import org.docx4j.jaxb.Context;
 import org.docx4j.model.Model;
 import org.docx4j.model.PropertyResolver;
-import org.docx4j.model.TransformState;
-import org.docx4j.model.datastorage.OpenDoPEHandler;
-import org.docx4j.model.structure.PageDimensions;
-import org.docx4j.openpackaging.exceptions.Docx4JException;
-import org.docx4j.wml.CTSdtRow;
+import org.docx4j.wml.BooleanDefaultTrue;
 import org.docx4j.wml.CTTblPrBase;
+import org.docx4j.wml.CTTrPrBase;
 import org.docx4j.wml.ObjectFactory;
 import org.docx4j.wml.P;
-import org.docx4j.wml.SdtPr;
 import org.docx4j.wml.Style;
 import org.docx4j.wml.Tbl;
 import org.docx4j.wml.TblGrid;
@@ -51,15 +48,11 @@ import org.docx4j.wml.TblPr;
 import org.docx4j.wml.TblWidth;
 import org.docx4j.wml.Tc;
 import org.docx4j.wml.TcPr;
-import org.docx4j.wml.Tr;
 import org.docx4j.wml.TcPrInner.GridSpan;
 import org.docx4j.wml.TcPrInner.VMerge;
+import org.docx4j.wml.Tr;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
-
-
-import javax.xml.bind.JAXBElement;
-import javax.xml.bind.JAXBException;
 
 /**
  * There are different ways to represent a table with possibly merged
@@ -90,14 +83,19 @@ import javax.xml.bind.JAXBException;
  *   does conflict resolution)
  * 
  *  @author Adam Schmideg
+ *  @author Alberto Zerolo
+ *  @author Jason Harrop
  * 
  */
 public class TableModel extends Model {
+	public static final String MODEL_ID = "w:tbl";
+	
 	private final static Logger log = Logger.getLogger(TableModel.class);
 
 	public TableModel() {
 		resetIndexes();
-		cells = new Vector<TableModelRow>();
+		cells = new ArrayList<TableModelRow>();
+		headerMaxRow = -1;
 	}
 
 	// TODO, retire this
@@ -108,8 +106,13 @@ public class TableModel extends Model {
 	 */
 	protected List<TableModelRow> cells;
 	
+	private int headerMaxRow;
+	
 	private int row;
 	private int col;
+	private int width = -1;
+	
+	private boolean drawTableBorder = true;
 	
 	protected String styleId; 
 	/**
@@ -175,7 +178,19 @@ public class TableModel extends Model {
 	public boolean isBorderConflictResolutionRequired() {
 		return borderConflictResolutionRequired;
 	}
-
+	
+	/*
+	 * @since 3.0.0
+	 */
+	public boolean isDrawTableBorders() {
+		return drawTableBorder;
+	}
+	
+	//Table width in twips, -1 = undefined
+	public int getTableWidth() {
+		return width;
+	}
+	
 	/**
 	 * Reset <var>row</var> and <var>col</var>.
 	 */
@@ -185,7 +200,7 @@ public class TableModel extends Model {
 	}
 
 	public void startRow(Tr tr) {
-		cells.add(new TableModelRow(tr) );
+		cells.add(new TableModelRow(tr));
 		row++;
 		col = -1;
 	}
@@ -195,20 +210,25 @@ public class TableModel extends Model {
 	 * <var>tc</var> to it.
 	 */
 	public void addCell(Tc tc, Node content) {
-		col++;
-		Cell newCell = new Cell(this, row, col, tc, content);
-		cells.get(row).add(newCell);
-		// populate table with dummy cells to the right of this one
-		for (int i = 0; i < newCell.getExtraCols(); i++)
-			addDummyCell();
-		// TODO: handle cell's gridBefore/gridAfter attrs by adding dummy cells if needed
+		addCell(new Cell(this, row, ++col, tc, content));
 	}
 
 	private void addDummyCell() {
-		col++;
-		cells.get(row).add(new Cell(this, row, col));
+		addDummyCell(0);
 	}
 
+	private void addDummyCell(int colSpan) {
+		Cell cell = new Cell(this, row, ++col);
+		if (colSpan > 0) {
+			cell.colspan = colSpan;
+		}
+		addCell(cell);
+	}
+
+	private void addCell(Cell cell) {
+		cells.get(row).add(cell);
+	}
+	
 	public Cell getCell(int row, int col) {
 		return cells.get(row).get(col);
 	}
@@ -228,28 +248,22 @@ public class TableModel extends Model {
 		return cells;
 	}
 
+    public int getHeaderMaxRow() {
+    	return headerMaxRow;
+    }
+    
 	/**
 	 * Build a table representation from a <var>tbl</var> instance.
 	 * Remember to set wordMLPackage before using this method!
 	 */
-	public void build(Node node, NodeList children) throws TransformerException {
-
+	@Override
+	public void build(Object node, Node content) throws TransformerException {
 		Tbl tbl = null;
 		try {
-			tbl = (Tbl) XmlUtils.unmarshal(node);
-		} catch (JAXBException e) {
-			throw new TransformerException("Node: " + node.getNodeName() + "="
-					+ node.getNodeValue(), e);
+			tbl = (Tbl)node;
+		} catch (ClassCastException e) {
+			throw new TransformerException("Node is not of the type Tbl it is " + node.getClass().getName());
 		}
-		build(tbl, children.item(0));
-		
-	}
-	
-	/**
-	 * Build a table representation from a <var>tbl</var> instance.
-	 * Remember to set wordMLPackage before using this method!
-	 */
-	public void build(Tbl tbl, Node content) throws TransformerException {
 
 		if (tbl.getTblPr()!=null
 				&& tbl.getTblPr().getTblStyle()!=null) {
@@ -261,19 +275,9 @@ public class TableModel extends Model {
 		
 		this.tblPr = tbl.getTblPr();
 		
-		PropertyResolver pr;
-			try {
-				pr = new PropertyResolver(wordMLPackage);
-			} catch (Docx4JException e) {
-				throw new TransformerException("Hmmm", e);
-			} 
+		PropertyResolver pr = getWordMLPackage().getMainDocumentPart().getPropertyResolver();
 			
 		effectiveTableStyle = pr.getEffectiveTableStyle(tbl.getTblPr() );
-		CTTblPrBase tblPr = effectiveTableStyle.getTblPr();
-		if (tblPr!=null && tblPr.getTblCellSpacing()!=null) {
-			borderConflictResolutionRequired = false;							
-		}
-				
 //	    if (tblPr!=null
 //	    		&& tblPr.getTblW()!=null) {
 //	    	if (tblPr.getTblW().getType()!=null 
@@ -311,6 +315,15 @@ public class TableModel extends Model {
 				handleRow(cellContents, tr, r);
 				r++;
 		}
+		
+		CTTblPrBase tblPr = effectiveTableStyle.getTblPr();
+		if (tblPr != null) {
+			if (tblPr.getTblCellSpacing()!=null) {
+				borderConflictResolutionRequired = false;							
+			}
+		}
+		
+		width = calcTableWidth();
 	}
 	
 	static class TrFinder extends CallbackImpl {
@@ -333,7 +346,6 @@ public class TableModel extends Model {
 			// Yes, unless its a nested Tbl
 			return !(o instanceof Tbl); 
 		}
-		
 	}
 	
 	static class TcFinder extends CallbackImpl {
@@ -349,7 +361,7 @@ public class TableModel extends Model {
 			}			
 			return null; 
 		}
-
+		
 		@Override
 		public boolean shouldTraverse(Object o) {
 			
@@ -509,6 +521,9 @@ public class TableModel extends Model {
 	
 
 	private void handleRow(NodeList cellContents, Tr tr, int r) {
+		int gridAfter = getGridAfter(tr);
+		int gridBefore = getGridBefore(tr);
+		boolean headerRow = isHeaderRow(tr);
 
 		log.debug("Processing r " + r);
 		
@@ -517,8 +532,21 @@ public class TableModel extends Model {
 			borderConflictResolutionRequired = false;
 		}
 		
+		if (headerRow && (headerMaxRow < r)) {
+			headerMaxRow = r;
+		}
+		
+		if (drawTableBorder) {
+			drawTableBorder = (gridBefore == 0) && (gridAfter == 0);
+		}
+		
 		TcFinder tcFinder = new TcFinder();
 		new TraversalUtil(tr, tcFinder);
+		
+		//add dummy cell for gridBefore
+		if (gridBefore > 0) {
+			addDummyCell(gridBefore);
+		}
 		
 		//List<Object> cells = tr.getEGContentCellContent();
 		int c = 0;
@@ -527,8 +555,7 @@ public class TableModel extends Model {
 
 			Node wtrNode = cellContents.item(r); // w:tr
 			if (wtrNode==null ) {
-				log.error("Couldn't find item " + r);
-				return;
+				log.warn("Couldn't find item " + r);
 			}
 			addCell(tc, getTc(wtrNode, c, new IntRef(0))); // the cell content
 			// addCell(tc, cellContents.item(i));
@@ -536,8 +563,62 @@ public class TableModel extends Model {
 			c++;
 		}
 
+		//add dummy cell for gridAfter
+		if (gridAfter > 0) {
+			addDummyCell(gridAfter);
+		}
 	}
 	
+	protected boolean isHeaderRow(Tr tr) {
+	List<JAXBElement<?>> cnfStyleOrDivIdOrGridBefore = (tr.getTrPr() != null ? tr.getTrPr().getCnfStyleOrDivIdOrGridBefore() : null);
+	JAXBElement element = getElement(cnfStyleOrDivIdOrGridBefore, "tblHeader");
+	BooleanDefaultTrue boolVal = (element != null ? (BooleanDefaultTrue)element.getValue() : null);
+		return (boolVal != null ? boolVal.isVal() : false);
+	}
+	
+	protected int getGridAfter(Tr tr) {
+	List<JAXBElement<?>> cnfStyleOrDivIdOrGridBefore = (tr.getTrPr() != null ? tr.getTrPr().getCnfStyleOrDivIdOrGridBefore() : null);
+	JAXBElement element = getElement(cnfStyleOrDivIdOrGridBefore, "gridAfter");
+	CTTrPrBase.GridAfter gridAfter = (element != null ? (CTTrPrBase.GridAfter)element.getValue() : null);
+	BigInteger val = (gridAfter != null ? gridAfter.getVal() : null);
+		return (val != null ? val.intValue() : 0);
+	}
+	
+	protected int getGridBefore(Tr tr) {
+	List<JAXBElement<?>> cnfStyleOrDivIdOrGridBefore = (tr.getTrPr() != null ? tr.getTrPr().getCnfStyleOrDivIdOrGridBefore() : null);
+	JAXBElement element = getElement(cnfStyleOrDivIdOrGridBefore, "gridBefore");
+	CTTrPrBase.GridBefore gridBefore = (element != null ? (CTTrPrBase.GridBefore)element.getValue() : null);
+	BigInteger val = (gridBefore != null ? gridBefore.getVal() : null);
+		return (val != null ? val.intValue() : 0);
+	}
+	
+	protected JAXBElement<?> getElement(List<JAXBElement<?>> cnfStyleOrDivIdOrGridBefore, String localName) {
+		JAXBElement<?> element = null;
+		if ((cnfStyleOrDivIdOrGridBefore != null) && (!cnfStyleOrDivIdOrGridBefore.isEmpty())) {
+			for (int i=0; i<cnfStyleOrDivIdOrGridBefore.size(); i++) {
+				element = cnfStyleOrDivIdOrGridBefore.get(i);
+				if (localName.equals(element.getName().getLocalPart())) {
+					return element;
+				}
+			}
+		}
+		return null;
+	}
+	
+	protected int calcTableWidth() {
+	int ret = -1;
+	List<TblGridCol> gridCols = (getTblGrid() != null ? getTblGrid().getGridCol() : null);
+		//The calculation is done the way it was done in the TableWriter. This isn't necesarily correct,
+	    //as cell-widths may override column widths.
+    	if ((gridCols != null) && (!gridCols.isEmpty())) {
+    		ret = 0;
+	    	for(int i=0; i<gridCols.size(); i++) {   
+	    		ret += gridCols.get(i).getW().intValue();
+	    	}
+    	}
+    	return ret;
+	}
+
 	/**
 	 * The tc could be inside something else, so find it recursively.
 	 * @param wtrNode
@@ -546,7 +627,7 @@ public class TableModel extends Model {
 	 * @return
 	 */
 	private Node getTc(Node wtrNode, int wanted, IntRef current) {
-		
+				
 		for (int i=0; i<wtrNode.getChildNodes().getLength(); i++ ) {
 			
 			Node thisChild = wtrNode.getChildNodes().item(i);
@@ -562,6 +643,8 @@ public class TableModel extends Model {
 				if (n!=null) return n;
 			}
 		}
+		log.error("Couldn't find tc in: " + XmlUtils.w3CDomNodeToString(wtrNode));
+		
 		return null;
 	}
 	
@@ -624,7 +707,7 @@ public class TableModel extends Model {
 		// so that is easy
 		for (int i=0; i<cells.size(); i++) {
 			Tr tr = factory.createTr();
-			tbl.getEGContentRowContent().add(tr);
+			tbl.getContent().add(tr);
 			
 			// populate the row
 			for(int j=0; j<getColCount(); j++) {
@@ -633,7 +716,7 @@ public class TableModel extends Model {
 				if (cell==null) {
 					// easy, nothing to do.
 					// this is just an empty tc	
-					tr.getEGContentCellContent().add(tc);
+					tr.getContent().add(tc);
 				} else {
 					if (cell.isDummy() ) {
 						// we need to determine whether this is a result of 
@@ -649,11 +732,11 @@ public class TableModel extends Model {
 							VMerge vm = factory.createTcPrInnerVMerge();
 							tcPr.setVMerge( vm );
 							tc.setTcPr(tcPr);
-							tr.getEGContentCellContent().add(tc);
+							tr.getContent().add(tc);
 							
 							// Must have an empty paragraph
 							P p = factory.createP();
-							tc.getEGBlockLevelElts().add(p);
+							tc.getContent().add(p);
 						} else {
 							log.error("Encountered phantom dummy cell at (" + i + "," + j + ") " );
 							log.debug(debugStr());
@@ -681,7 +764,7 @@ public class TableModel extends Model {
 							log.warn("Both rowspan & colspan set; that will be interesting..");
 						}
 												
-						tr.getEGContentCellContent().add(tc);
+						tr.getContent().add(tc);
 						
 						// Add the cell content, if we have it.
 						// We won't have compatible content if this model has
@@ -693,7 +776,7 @@ public class TableModel extends Model {
 							Object o;
 							try {
 								o = XmlUtils.unmarshal(foreign.getChildNodes().item(n));
-								tc.getEGBlockLevelElts().add(o);
+								tc.getContent().add(o);
 							} catch (JAXBException e) {
 								e.printStackTrace();
 							}
@@ -736,39 +819,5 @@ public class TableModel extends Model {
 		}
 		return buf.toString();
 	}
-	
-	public static class TableModelTransformState implements TransformState {
-		
-		// The last table number, in document order,
-		// which we have processed. 
-		// The idea is to be able to write an id (unique within the document) to each
-		// table.
-		
-		int idx = 0;
-
-		/**
-		 * @return the idx
-		 */
-		public int getIdx() {
-			return idx;
-		}
-
-		/**
-		 * @param idx the idx to set
-		 */
-		public void incrementIdx() {
-			idx++;
-		}
-		
-//		/**
-//		 * @param idx the idx to set
-//		 */
-//		public void setIdx(int idx) {
-//			this.idx = idx;
-//		}
-		
-		
-	}
-
 
 }

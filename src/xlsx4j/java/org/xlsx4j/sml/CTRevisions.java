@@ -1,7 +1,7 @@
 /*
- *  Copyright 2010, Plutext Pty Ltd.
+ *  Copyright 2010-2013, Plutext Pty Ltd.
  *   
- *  This file is part of docx4j.
+ *  This file is part of xlsx4j, a component of docx4j.
 
     docx4j is licensed under the Apache License, Version 2.0 (the "License"); 
     you may not use this file except in compliance with the License. 
@@ -17,17 +17,18 @@
     limitations under the License.
 
  */
-
-
 package org.xlsx4j.sml;
 
 import java.util.ArrayList;
 import java.util.List;
+import javax.xml.bind.Unmarshaller;
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlElements;
+import javax.xml.bind.annotation.XmlTransient;
 import javax.xml.bind.annotation.XmlType;
+import org.jvnet.jaxb2_commons.ppp.Child;
 
 
 /**
@@ -64,23 +65,26 @@ import javax.xml.bind.annotation.XmlType;
 @XmlType(name = "CT_Revisions", propOrder = {
     "rrcOrRmOrRcv"
 })
-public class CTRevisions {
+public class CTRevisions implements Child
+{
 
     @XmlElements({
-        @XmlElement(name = "rm", type = CTRevisionMove.class),
         @XmlElement(name = "rrc", type = CTRevisionRowColumn.class),
-        @XmlElement(name = "rcmt", type = CTRevisionComment.class),
-        @XmlElement(name = "ris", type = CTRevisionInsertSheet.class),
-        @XmlElement(name = "rcft", type = CTRevisionConflict.class),
-        @XmlElement(name = "rsnm", type = CTRevisionSheetRename.class),
-        @XmlElement(name = "rdn", type = CTRevisionDefinedName.class),
-        @XmlElement(name = "rqt", type = CTRevisionQueryTableField.class),
-        @XmlElement(name = "raf", type = CTRevisionAutoFormatting.class),
-        @XmlElement(name = "rcc", type = CTRevisionCellChange.class),
+        @XmlElement(name = "rm", type = CTRevisionMove.class),
         @XmlElement(name = "rcv", type = CTRevisionCustomView.class),
-        @XmlElement(name = "rfmt", type = CTRevisionFormatting.class)
+        @XmlElement(name = "rsnm", type = CTRevisionSheetRename.class),
+        @XmlElement(name = "ris", type = CTRevisionInsertSheet.class),
+        @XmlElement(name = "rcc", type = CTRevisionCellChange.class),
+        @XmlElement(name = "rfmt", type = CTRevisionFormatting.class),
+        @XmlElement(name = "raf", type = CTRevisionAutoFormatting.class),
+        @XmlElement(name = "rdn", type = CTRevisionDefinedName.class),
+        @XmlElement(name = "rcmt", type = CTRevisionComment.class),
+        @XmlElement(name = "rqt", type = CTRevisionQueryTableField.class),
+        @XmlElement(name = "rcft", type = CTRevisionConflict.class)
     })
     protected List<Object> rrcOrRmOrRcv;
+    @XmlTransient
+    private Object parent;
 
     /**
      * Gets the value of the rrcOrRmOrRcv property.
@@ -100,18 +104,18 @@ public class CTRevisions {
      * 
      * <p>
      * Objects of the following type(s) are allowed in the list
-     * {@link CTRevisionMove }
      * {@link CTRevisionRowColumn }
-     * {@link CTRevisionComment }
-     * {@link CTRevisionInsertSheet }
-     * {@link CTRevisionConflict }
-     * {@link CTRevisionSheetRename }
-     * {@link CTRevisionDefinedName }
-     * {@link CTRevisionQueryTableField }
-     * {@link CTRevisionAutoFormatting }
-     * {@link CTRevisionCellChange }
+     * {@link CTRevisionMove }
      * {@link CTRevisionCustomView }
+     * {@link CTRevisionSheetRename }
+     * {@link CTRevisionInsertSheet }
+     * {@link CTRevisionCellChange }
      * {@link CTRevisionFormatting }
+     * {@link CTRevisionAutoFormatting }
+     * {@link CTRevisionDefinedName }
+     * {@link CTRevisionComment }
+     * {@link CTRevisionQueryTableField }
+     * {@link CTRevisionConflict }
      * 
      * 
      */
@@ -120,6 +124,32 @@ public class CTRevisions {
             rrcOrRmOrRcv = new ArrayList<Object>();
         }
         return this.rrcOrRmOrRcv;
+    }
+
+    /**
+     * Gets the parent object in the object tree representing the unmarshalled xml document.
+     * 
+     * @return
+     *     The parent object.
+     */
+    public Object getParent() {
+        return this.parent;
+    }
+
+    public void setParent(Object parent) {
+        this.parent = parent;
+    }
+
+    /**
+     * This method is invoked by the JAXB implementation on each instance when unmarshalling completes.
+     * 
+     * @param parent
+     *     The parent object in the object tree.
+     * @param unmarshaller
+     *     The unmarshaller that generated the instance.
+     */
+    public void afterUnmarshal(Unmarshaller unmarshaller, Object parent) {
+        setParent(parent);
     }
 
 }

@@ -1,7 +1,7 @@
 /*
- *  Copyright 2010, Plutext Pty Ltd.
+ *  Copyright 2010-2013, Plutext Pty Ltd.
  *   
- *  This file is part of docx4j.
+ *  This file is part of xlsx4j, a component of docx4j.
 
     docx4j is licensed under the Apache License, Version 2.0 (the "License"); 
     you may not use this file except in compliance with the License. 
@@ -17,8 +17,6 @@
     limitations under the License.
 
  */
-
-
 package org.xlsx4j.sml;
 
 import javax.xml.bind.annotation.XmlEnum;
@@ -52,67 +50,22 @@ import javax.xml.bind.annotation.XmlType;
 @XmlEnum
 public enum STShowDataAs {
 
-
-    /**
-     * Normal Data Type
-     * 
-     */
     @XmlEnumValue("normal")
     NORMAL("normal"),
-
-    /**
-     * Difference
-     * 
-     */
     @XmlEnumValue("difference")
     DIFFERENCE("difference"),
-
-    /**
-     * Percentage Of
-     * 
-     */
     @XmlEnumValue("percent")
     PERCENT("percent"),
-
-    /**
-     * Percentage Difference
-     * 
-     */
     @XmlEnumValue("percentDiff")
     PERCENT_DIFF("percentDiff"),
-
-    /**
-     * Running Total
-     * 
-     */
     @XmlEnumValue("runTotal")
     RUN_TOTAL("runTotal"),
-
-    /**
-     * Percentage of Row
-     * 
-     */
     @XmlEnumValue("percentOfRow")
     PERCENT_OF_ROW("percentOfRow"),
-
-    /**
-     * Percent of Column
-     * 
-     */
     @XmlEnumValue("percentOfCol")
     PERCENT_OF_COL("percentOfCol"),
-
-    /**
-     * Percentage of Total
-     * 
-     */
     @XmlEnumValue("percentOfTotal")
     PERCENT_OF_TOTAL("percentOfTotal"),
-
-    /**
-     * Index
-     * 
-     */
     @XmlEnumValue("index")
     INDEX("index");
     private final String value;
