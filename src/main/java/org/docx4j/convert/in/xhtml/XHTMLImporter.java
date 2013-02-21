@@ -1018,7 +1018,7 @@ public class XHTMLImporter {
 					return;
 				}
 				base64String = base64String.substring(commaPos + 1);
-				System.out.println(base64String);
+				//System.out.println(base64String);
 				imageBytes = Base64.decodeBase64(base64String.getBytes("UTF8"));
 			} else {
 				Docx4jUserAgent docx4jUserAgent = renderer.getDocx4jUserAgent();
