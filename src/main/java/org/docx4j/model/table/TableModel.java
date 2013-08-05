@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
 import org.docx4j.TraversalUtil;
 import org.docx4j.TraversalUtil.CallbackImpl;
 import org.docx4j.XmlUtils;
+import org.docx4j.finders.TcFinder;
 import org.docx4j.jaxb.Context;
 import org.docx4j.model.Model;
 import org.docx4j.model.PropertyResolver;
@@ -413,28 +414,7 @@ public class TableModel extends Model {
 		}
 	}
 	
-	static class TcFinder extends CallbackImpl {
-		
-		List<Tc> tcList = new ArrayList<Tc>();  
-				
-		@Override
-		public List<Object> apply(Object o) {
-			
-			if (o instanceof Tc ) {
-				
-				tcList.add((Tc)o);
-			}			
-			return null; 
-		}
-		
-		@Override
-		public boolean shouldTraverse(Object o) {
-			
-			// Yes, unless its a nested Tbl
-			return !(o instanceof Tbl); 
-		}
-	}
-	
+
 	/*
 	 * TrFinder and TcFinder can find tr and tc in a complex
 	 * case such as the following:
