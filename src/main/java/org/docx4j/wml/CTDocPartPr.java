@@ -1,5 +1,5 @@
 /*
- *  Copyright 2007-2008, Plutext Pty Ltd.
+ *  Copyright 2007-2013, Plutext Pty Ltd.
  *   
  *  This file is part of docx4j.
 
@@ -19,7 +19,9 @@
  */
 
 
-package org.docx4j.wml;
+package org.docx4j.wml; 
+
+import org.jvnet.jaxb2_commons.ppp.Child;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -31,7 +33,6 @@ import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlElements;
 import javax.xml.bind.annotation.XmlTransient;
 import javax.xml.bind.annotation.XmlType;
-import org.jvnet.jaxb2_commons.ppp.Child;
 
 
 /**
@@ -79,17 +80,16 @@ import org.jvnet.jaxb2_commons.ppp.Child;
 @XmlType(name = "CT_DocPartPr", propOrder = {
     "nameOrStyleOrCategory"
 })
-public class CTDocPartPr
-    implements Child
+public class CTDocPartPr implements Child
 {
 
     @XmlElements({
-        @XmlElement(name = "description", type = CTDocPartPr.Description.class),
-        @XmlElement(name = "types", type = CTDocPartTypes.class),
         @XmlElement(name = "name", type = CTDocPartName.class),
-        @XmlElement(name = "behaviors", type = CTDocPartBehaviors.class),
         @XmlElement(name = "style", type = CTDocPartPr.Style.class),
         @XmlElement(name = "category", type = CTDocPartCategory.class),
+        @XmlElement(name = "types", type = CTDocPartTypes.class),
+        @XmlElement(name = "behaviors", type = CTDocPartBehaviors.class),
+        @XmlElement(name = "description", type = CTDocPartPr.Description.class),
         @XmlElement(name = "guid", type = CTGuid.class)
     })
     protected List<Object> nameOrStyleOrCategory;
@@ -114,12 +114,12 @@ public class CTDocPartPr
      * 
      * <p>
      * Objects of the following type(s) are allowed in the list
-     * {@link CTDocPartPr.Description }
-     * {@link CTDocPartTypes }
      * {@link CTDocPartName }
-     * {@link CTDocPartBehaviors }
      * {@link CTDocPartPr.Style }
      * {@link CTDocPartCategory }
+     * {@link CTDocPartTypes }
+     * {@link CTDocPartBehaviors }
+     * {@link CTDocPartPr.Description }
      * {@link CTGuid }
      * 
      * 
@@ -180,7 +180,7 @@ public class CTDocPartPr
     public static class Description implements Child
     {
 
-        @XmlAttribute(namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main")
+        @XmlAttribute(name = "val", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main")
         protected String val;
         @XmlTransient
         private Object parent;
@@ -260,7 +260,7 @@ public class CTDocPartPr
     public static class Style implements Child
     {
 
-        @XmlAttribute(namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main")
+        @XmlAttribute(name = "val", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main")
         protected String val;
         @XmlTransient
         private Object parent;

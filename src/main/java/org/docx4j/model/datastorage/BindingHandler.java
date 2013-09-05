@@ -1,3 +1,22 @@
+/**
+ *  Copyright 2013, Plutext Pty Ltd.
+ *   
+ *  This file is part of docx4j.
+
+    docx4j is licensed under the Apache License, Version 2.0 (the "License"); 
+    you may not use this file except in compliance with the License. 
+
+    You may obtain a copy of the License at 
+
+        http://www.apache.org/licenses/LICENSE-2.0 
+
+    Unless required by applicable law or agreed to in writing, software 
+    distributed under the License is distributed on an "AS IS" BASIS, 
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+    See the License for the specific language governing permissions and 
+    limitations under the License.
+
+ **/
 package org.docx4j.model.datastorage;
 
 import java.util.Map;
@@ -5,7 +24,8 @@ import java.util.Map;
 import javax.xml.xpath.XPath;
 import javax.xml.xpath.XPathFactory;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.docx4j.openpackaging.exceptions.Docx4JException;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
 import org.docx4j.openpackaging.parts.CustomXmlDataStoragePart;
@@ -21,7 +41,7 @@ import org.docx4j.wml.CTDataBinding;
 
 public class BindingHandler {
 	
-	private static Logger log = Logger.getLogger(BindingHandler.class);		
+	private static Logger log = LoggerFactory.getLogger(BindingHandler.class);		
 	
 //	static Templates xslt;			
 	private static XPathFactory xPathFactory;
@@ -53,27 +73,47 @@ public class BindingHandler {
 	 * If hyperlinkStyleId is set to <code>"someWordHyperlinkStyleName"</code>, 
 	 * strings containing 'http://' or 'https://' or or 'mailto:' are converted to w:hyperlink.  
 	 * The default Word hyperlink style name is "Hyperlink".
-	 * If you do this, you will need to post-process with RemovalHandler, since a
-	 * content control with SdtPr w:dataBinding and w:text
-	 * which contains a w:hyperlink will prevent Word 2007 from
-	 * opening the docx.
 	 * 
 	 * Due to the architecture of this class, this is a static flag changing the
 	 * behavior of all following calls to {@link #applyBindings}.
 	 * 
 	 * @param hyperlinkStyleID
 	 *            The style to use for hyperlinks (eg Hyperlink)
+	 * @deprecated
 	 */
 	public static void setHyperlinkStyle (
 			String hyperlinkStyleID) {
-		hyperlinkStyleId = hyperlinkStyleID;
+		getHyperlinkResolver().setHyperlinkStyle(hyperlinkStyleID);
 	}
+	/**
+	 * @deprecated
+	 */
 	public static String getHyperlinkStyleId() {
-		return hyperlinkStyleId;
+		return getHyperlinkResolver().getHyperlinkStyleId();
+	}
+		
+	
+	/**
+	 * @return the hyperlinkResolver
+	 * @since 3.0.0
+	 */
+	public static BindingHyperlinkResolver getHyperlinkResolver() {
+		
+		if (hyperlinkResolver==null) {
+			hyperlinkResolver = new BindingHyperlinkResolver();
+		}
+		return hyperlinkResolver;
+	}
+	/**
+	 * @param hyperlinkResolver the hyperlinkResolver to set
+	 * @since 3.0.0
+	 */
+	public static void setHyperlinkResolver(
+			BindingHyperlinkResolver hyperlinkResolver) {
+		BindingHandler.hyperlinkResolver = hyperlinkResolver;
 	}
 	
-	private static String hyperlinkStyleId = null;
-	
+	private static BindingHyperlinkResolver hyperlinkResolver;
 	
 	
 	/* ---------------------------------------------------------------------------
@@ -98,9 +138,7 @@ public class BindingHandler {
 			// and in headers/footers. See further
 			// http://forums.opendope.org/Support-components-in-headers-footers-tp2964174p2964174.html
 			
-			if (hyperlinkStyleId !=null) {
-					wordMLPackage.getMainDocumentPart().getPropertyResolver().activateStyle(hyperlinkStyleId);
-			}			
+			getHyperlinkResolver().activateHyperlinkStyle(wordMLPackage);
 
 			applyBindings(wordMLPackage.getMainDocumentPart());
 	
@@ -124,8 +162,8 @@ public class BindingHandler {
 				// Binding is a concept which applies more broadly
 				// than just Word documents.
 			
-			if (hyperlinkStyleId !=null && pkg instanceof WordprocessingMLPackage) {
-				((WordprocessingMLPackage)pkg).getMainDocumentPart().getPropertyResolver().activateStyle(hyperlinkStyleId);
+			if (pkg instanceof WordprocessingMLPackage) {
+				getHyperlinkResolver().activateHyperlinkStyle((WordprocessingMLPackage)pkg);
 			}
 						
 			XPathsPart xPathsPart = null;
@@ -194,20 +232,30 @@ public class BindingHandler {
 					// Note that Word does not create that part until the user provides one or more prop values
 				
 				if (part==null) {
-					log.error("Couldn't locate part by storeItemId " + storeItemId);
-					return null;
+					throw new InputIntegrityException("Couldn't locate part by storeItemId " + storeItemId);
+//					log.error("Couldn't locate part by storeItemId " + storeItemId);
+//					return null;
 				}
 				
-				if (log.isDebugEnabled() ) {
-					String r = part.xpathGetString(xpath, prefixMappings);
-					log.debug(xpath + " yielded result " + r);
+				String r = part.xpathGetString(xpath, prefixMappings);
+				if (r==null) {
+					// never expect null, since an empty result set is converted to an empty string
+					log.error(xpath + " unexpectedly null!");
+					return r;
+				} else if (r.equals("")) {
+					log.debug("XML element is missing (or empty) for xpath: " + xpath);
+					// if WARN is enabled for org.docx4j.openpackaging.parts.XmlPart, logs will tell you which
+					return r;
+				} else if (log.isDebugEnabled() ) {
+					log.debug(xpath + " yielded result '" + r + "'");
 					return r;
 				} else {
-					return part.xpathGetString(xpath, prefixMappings);
+					return r;
 				}
 			} catch (Docx4JException e) {
-				e.printStackTrace();
-				return null;
+				log.error(e.getMessage(), e);
+//				return null;
+				throw new InputIntegrityException(e.getMessage());
 			}
 		}
 

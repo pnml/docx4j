@@ -1,5 +1,5 @@
 /*
- *  Copyright 2007-2008, Plutext Pty Ltd.
+ *  Copyright 2007-2013, Plutext Pty Ltd.
  *   
  *  This file is part of docx4j.
 
@@ -19,7 +19,9 @@
  */
 
 
-package org.docx4j.wml;
+package org.docx4j.wml; 
+
+import org.jvnet.jaxb2_commons.ppp.Child;
 
 import java.math.BigInteger;
 import javax.xml.bind.Unmarshaller;
@@ -29,7 +31,6 @@ import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlTransient;
 import javax.xml.bind.annotation.XmlType;
-import org.jvnet.jaxb2_commons.ppp.Child;
 
 
 /**
@@ -143,8 +144,7 @@ import org.jvnet.jaxb2_commons.ppp.Child;
     "checkErrors",
     "odso"
 })
-public class CTMailMerge
-    implements Child
+public class CTMailMerge implements Child
 {
 
     @XmlElement(required = true)
@@ -603,11 +603,10 @@ public class CTMailMerge
      */
     @XmlAccessorType(XmlAccessType.FIELD)
     @XmlType(name = "")
-    public static class ActiveRecord
-        implements Child
+    public static class ActiveRecord implements Child
     {
 
-        @XmlAttribute(namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", required = true)
+        @XmlAttribute(name = "val", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", required = true)
         protected BigInteger val;
         @XmlTransient
         private Object parent;
@@ -684,11 +683,10 @@ public class CTMailMerge
      */
     @XmlAccessorType(XmlAccessType.FIELD)
     @XmlType(name = "")
-    public static class AddressFieldName
-        implements Child
+    public static class AddressFieldName implements Child
     {
 
-        @XmlAttribute(namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main")
+        @XmlAttribute(name = "val", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main")
         protected String val;
         @XmlTransient
         private Object parent;
@@ -770,11 +768,10 @@ public class CTMailMerge
      */
     @XmlAccessorType(XmlAccessType.FIELD)
     @XmlType(name = "")
-    public static class CheckErrors
-        implements Child
+    public static class CheckErrors implements Child
     {
 
-        @XmlAttribute(namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", required = true)
+        @XmlAttribute(name = "val", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", required = true)
         protected BigInteger val;
         @XmlTransient
         private Object parent;
@@ -851,11 +848,10 @@ public class CTMailMerge
      */
     @XmlAccessorType(XmlAccessType.FIELD)
     @XmlType(name = "")
-    public static class ConnectString
-        implements Child
+    public static class ConnectString implements Child
     {
 
-        @XmlAttribute(namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main")
+        @XmlAttribute(name = "val", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main")
         protected String val;
         @XmlTransient
         private Object parent;
@@ -932,11 +928,10 @@ public class CTMailMerge
      */
     @XmlAccessorType(XmlAccessType.FIELD)
     @XmlType(name = "")
-    public static class MailSubject
-        implements Child
+    public static class MailSubject implements Child
     {
 
-        @XmlAttribute(namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main")
+        @XmlAttribute(name = "val", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main")
         protected String val;
         @XmlTransient
         private Object parent;
@@ -1013,11 +1008,10 @@ public class CTMailMerge
      */
     @XmlAccessorType(XmlAccessType.FIELD)
     @XmlType(name = "")
-    public static class Query
-        implements Child
+    public static class Query implements Child
     {
 
-        @XmlAttribute(namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main")
+        @XmlAttribute(name = "val", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main")
         protected String val;
         @XmlTransient
         private Object parent;

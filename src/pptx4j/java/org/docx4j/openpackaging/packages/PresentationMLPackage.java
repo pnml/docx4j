@@ -23,13 +23,16 @@ package org.docx4j.openpackaging.packages;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.xml.bind.JAXBException;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.docx4j.Docx4jProperties;
 import org.docx4j.model.structure.PageSizePaper;
 import org.docx4j.model.styles.StyleTree;
@@ -38,6 +41,7 @@ import org.docx4j.openpackaging.contenttype.ContentTypeManager;
 import org.docx4j.openpackaging.contenttype.ContentTypes;
 import org.docx4j.openpackaging.exceptions.Docx4JException;
 import org.docx4j.openpackaging.exceptions.InvalidFormatException;
+import org.docx4j.openpackaging.io3.stores.ZipPartStore;
 import org.docx4j.openpackaging.parts.DocPropsCorePart;
 import org.docx4j.openpackaging.parts.DocPropsCustomPart;
 import org.docx4j.openpackaging.parts.DocPropsExtendedPart;
@@ -45,6 +49,7 @@ import org.docx4j.openpackaging.parts.Part;
 import org.docx4j.openpackaging.parts.PartName;
 import org.docx4j.openpackaging.parts.ThemePart;
 import org.docx4j.openpackaging.parts.PresentationML.MainPresentationPart;
+import org.docx4j.openpackaging.parts.PresentationML.NotesSlidePart;
 import org.docx4j.openpackaging.parts.PresentationML.SlideLayoutPart;
 import org.docx4j.openpackaging.parts.PresentationML.SlideMasterPart;
 import org.docx4j.openpackaging.parts.PresentationML.SlidePart;
@@ -64,7 +69,7 @@ import org.pptx4j.pml.SldLayout;
  */
 public class PresentationMLPackage  extends OpcPackage {
 	
-	protected static Logger log = Logger.getLogger(PresentationMLPackage.class);
+	protected static Logger log = LoggerFactory.getLogger(PresentationMLPackage.class);
 		
 	
 	/**
@@ -133,7 +138,7 @@ public class PresentationMLPackage  extends OpcPackage {
 	 * @throws InvalidFormatException
 	 */
 	public static PresentationMLPackage createPackage() throws InvalidFormatException {
-
+		
 		String slideSize= Docx4jProperties.getProperties().getProperty("pptx4j.PageSize", "A4");
 		log.info("Using paper size: " + slideSize);
 		
@@ -206,7 +211,7 @@ public class PresentationMLPackage  extends OpcPackage {
 			throw new InvalidFormatException("Couldn't create package", e);
 		}
 		
-		
+		pmlPack.setPartStore(new ZipPartStore());
 
 		// Return the new package
 		return pmlPack;
@@ -223,6 +228,7 @@ public class PresentationMLPackage  extends OpcPackage {
 	 * @throws InvalidFormatException
 	 * @throws JAXBException
 	 */
+	@Deprecated
 	public static SlidePart createSlidePart(MainPresentationPart pp, SlideLayoutPart layoutPart, PartName partName) 
 		throws InvalidFormatException, JAXBException {
 		
@@ -237,6 +243,28 @@ public class PresentationMLPackage  extends OpcPackage {
 		
 		return slidePart;
 	}
+  
+	/**
+	 * Create a notes slide and add it to slide relationships
+	 * 
+	 * @param sourcePart
+	 * @param partName
+	 * @return the notes slide
+	 * @throws InvalidFormatException
+	 * @throws JAXBException
+	 */
+	public static NotesSlidePart createNotesSlidePart(Part sourcePart, PartName partName) throws Exception {
+
+        String proposedRelId = sourcePart.getRelationshipsPart().getNextId();
+
+        NotesSlidePart notesSlidePart = new NotesSlidePart(partName);
+
+        notesSlidePart.getSourceRelationships().add(sourcePart.addTargetPart(notesSlidePart, proposedRelId));
+        notesSlidePart.setJaxbElement(NotesSlidePart.createNotes());
+
+        return notesSlidePart;
+
+    }
 	
 	
 	private static String SAMPLE_SHAPE = 			
@@ -296,14 +324,14 @@ public class PresentationMLPackage  extends OpcPackage {
 		if (styleTree==null) {
 			List<Style> styles = TextStyles.generateStyles(this);
 			
-			List<String> list = new ArrayList<String>();			
+			Set<String> list = new HashSet<String>();			
 			Map<String, Style> map = new HashMap<String, Style>();
 			for (Style s : styles) {
 				map.put(s.getStyleId(), s);
 				list.add(s.getStyleId());
 			}
-			styleTree = new StyleTree(list, map, "DocDefaults", "DocDefaults");
-				// We don't have defaultParagraphStyleId, defaultCharacterStyleId
+			styleTree = new StyleTree(list, map);
+				// TODO: We don't have defaultParagraphStyleId, defaultCharacterStyleId
 				// so use DocDefaults for now.
 		}
 		return styleTree;

@@ -1,5 +1,5 @@
 /*
- *  Copyright 2007-2008, Plutext Pty Ltd.
+ *  Copyright 2007-2013, Plutext Pty Ltd.
  *   
  *  This file is part of docx4j.
 
@@ -19,7 +19,9 @@
  */
 
 
-package org.docx4j.wml;
+package org.docx4j.wml; 
+
+import org.jvnet.jaxb2_commons.ppp.Child;
 
 import java.math.BigInteger;
 import javax.xml.bind.Unmarshaller;
@@ -28,7 +30,6 @@ import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlTransient;
 import javax.xml.bind.annotation.XmlType;
-import org.jvnet.jaxb2_commons.ppp.Child;
 
 
 /**
@@ -55,21 +56,20 @@ import org.jvnet.jaxb2_commons.ppp.Child;
  */
 @XmlAccessorType(XmlAccessType.FIELD)
 @XmlType(name = "CT_WritingStyle")
-public class CTWritingStyle
-    implements Child
+public class CTWritingStyle implements Child
 {
 
-    @XmlAttribute(namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", required = true)
+    @XmlAttribute(name = "lang", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", required = true)
     protected String lang;
-    @XmlAttribute(namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", required = true)
+    @XmlAttribute(name = "vendorID", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", required = true)
     protected BigInteger vendorID;
-    @XmlAttribute(namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", required = true)
+    @XmlAttribute(name = "dllVersion", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", required = true)
     protected BigInteger dllVersion;
-    @XmlAttribute(namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main")
+    @XmlAttribute(name = "nlCheck", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main")
     protected Boolean nlCheck;
-    @XmlAttribute(namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", required = true)
+    @XmlAttribute(name = "checkStyle", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", required = true)
     protected boolean checkStyle;
-    @XmlAttribute(namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", required = true)
+    @XmlAttribute(name = "appName", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", required = true)
     protected String appName;
     @XmlTransient
     private Object parent;

@@ -33,7 +33,9 @@ import javax.xml.bind.util.JAXBResult;
 import javax.xml.transform.Templates;
 import javax.xml.transform.stream.StreamSource;
 
-import org.apache.log4j.Logger;
+import org.apache.commons.io.IOUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.docx4j.XmlUtils;
 import org.docx4j.jaxb.Context;
 import org.docx4j.jaxb.JaxbValidationEventHandler;
@@ -41,6 +43,7 @@ import org.docx4j.jaxb.NamespacePrefixMapperUtils;
 import org.docx4j.openpackaging.exceptions.Docx4JException;
 import org.docx4j.openpackaging.exceptions.InvalidFormatException;
 import org.docx4j.openpackaging.io3.stores.PartStore;
+import org.docx4j.openpackaging.parts.WordprocessingML.DocumentSettingsPart;
 import org.docx4j.wml.Numbering;
 
 /** OPC Parts are either XML, or binary (or text) documents.
@@ -68,7 +71,7 @@ import org.docx4j.wml.Numbering;
  * */
 public abstract class JaxbXmlPart<E> extends Part {
 	
-	protected static Logger log = Logger.getLogger(JaxbXmlPart.class);
+	protected static Logger log = LoggerFactory.getLogger(JaxbXmlPart.class);
 	
 	// This class is abstract
 	// Most applications ought to be able to instantiate
@@ -105,11 +108,20 @@ public abstract class JaxbXmlPart<E> extends Part {
 	public E getJaxbElement() {
 		
 		// Lazy unmarshal
+		InputStream is = null;
 		if (jaxbElement==null) {
 			PartStore partStore = this.getPackage().getPartStore();
 			try {
 				String name = this.partName.getName();
-				InputStream is = partStore.loadPart( 
+				
+				try {
+					if (partStore!=null) {
+						this.setContentLengthAsLoaded(
+								partStore.getPartSize( name.substring(1)));
+					}
+				} catch (UnsupportedOperationException uoe) {}
+					
+				is = partStore.loadPart( 
 						name.substring(1));
 				if (is==null) {
 					log.warn(name + " missing from part store");
@@ -118,15 +130,36 @@ public abstract class JaxbXmlPart<E> extends Part {
 					unmarshal( is );
 				}
 			} catch (JAXBException e) {
-				log.error(e);
+				log.error(e.getMessage(), e);
 			} catch (Docx4JException e) {
-				log.error(e);
-			}
+				log.error(e.getMessage(), e);
+			} finally {
+				IOUtils.closeQuietly(is);
+			}			
 		}
 		return jaxbElement;
 	}
+	
+	/**
+	 * Get the live contents of this part.
+	 * (Just an alias/synonym for getJaxbElement())
+	 * @return
+	 * @since 3.0
+	 */
+	public E getContents() {
+		return getJaxbElement();
+	}
 
 	public void setJaxbElement(E jaxbElement) {
+		this.jaxbElement = jaxbElement;
+	}
+	/**
+	 * Set the  contents of this part.
+	 * (Just an alias/synonym for setJaxbElement())
+	 * @param jaxbElement
+	 * @since 3.0
+	 */
+	public void setContents(E jaxbElement) {
 		this.jaxbElement = jaxbElement;
 	}
 	
@@ -135,10 +168,73 @@ public abstract class JaxbXmlPart<E> extends Part {
 		setJaxbElement((E)result.getResult());
 	}
 	
+	/**
+	 * See your content as XML.  An easy way to invoke XmlUtils.marshaltoString 
+	 *  
+	 * @return
+	 * @since 3.0.0
+	 */
+	public String getXML() {
+		return XmlUtils.marshaltoString( getJaxbElement(), true, true, jc );
+	}
+	
 	public boolean isUnmarshalled(){
 		return jaxbElement!=null;
 	}
 	
+	/**
+	 * unmarshallFromTemplate.  Where jaxbElement has not been
+	 * unmarshalled yet, this is more efficient (3 times
+	 * faster, in some testing) than calling
+	 * XmlUtils.marshaltoString directly, since it avoids
+	 * some JAXB processing.  
+	 * 
+	 * @param mappings
+	 * @throws JAXBException
+	 * @throws Docx4JException
+	 * 
+	 * @since 3.0.0
+	 */
+	public void variableReplace(java.util.HashMap<String, String> mappings) throws JAXBException, Docx4JException {
+		
+		// Get the contents as a string
+		String wmlTemplateString = null;
+		if (jaxbElement==null) {
+
+			PartStore partStore = this.getPackage().getPartStore();
+			String name = this.partName.getName();
+			InputStream is = partStore.loadPart( 
+					name.substring(1));
+			if (is==null) {
+				log.warn(name + " missing from part store");
+				throw new Docx4JException(name + " missing from part store");
+			} else {
+				log.info("Lazily unmarshalling " + name);
+//				wmlTemplateString = convertStreamToString(is);
+				
+				// This seems to be about 5% faster than the Scanner approach
+				try {
+					wmlTemplateString = IOUtils.toString(is, "UTF-8");
+				} catch (IOException e) {
+					throw new Docx4JException(e.getMessage(), e);
+				}
+			}
+			
+		} else {
+			
+			wmlTemplateString = XmlUtils.marshaltoString(jaxbElement, true, false, jc);
+			
+		}
+		
+		// Do the replacement
+		jaxbElement = (E)XmlUtils.unmarshallFromTemplate(wmlTemplateString, mappings);
+		
+	}
+	
+//	private static String convertStreamToString(java.io.InputStream is) {
+//	    java.util.Scanner s = new java.util.Scanner(is).useDelimiter("\\A");
+//	    return s.hasNext() ? s.next() : "";
+//	}	
 	
     /**
      * Marshal the content tree rooted at <tt>jaxbElement</tt> into a DOM tree.
@@ -175,15 +271,17 @@ public abstract class JaxbXmlPart<E> extends Part {
     public void marshal(org.w3c.dom.Node node, 
     		Object namespacePrefixMapper) throws JAXBException {
 
+    	
 		try {
 			Marshaller marshaller = jc.createMarshaller();
 			NamespacePrefixMapperUtils.setProperty(marshaller, namespacePrefixMapper);
 			getJaxbElement();
+	    	setMceIgnorable();
 			marshaller.marshal(jaxbElement, node);
 
 		} catch (JAXBException e) {
 //			e.printStackTrace();
-			log.error(e);
+			log.error(e.getMessage(), e);
 			throw e;
 		}
 	}
@@ -217,6 +315,7 @@ public abstract class JaxbXmlPart<E> extends Part {
 	 */
     public void marshal(java.io.OutputStream os, Object namespacePrefixMapper) throws JAXBException {
 
+    	
 		try {
 			Marshaller marshaller = jc.createMarshaller();
 			NamespacePrefixMapperUtils.setProperty(marshaller, namespacePrefixMapper);
@@ -227,14 +326,58 @@ public abstract class JaxbXmlPart<E> extends Part {
 				log.error("No JAXBElement has been created for this part, yet!");
 				throw new JAXBException("No JAXBElement has been created for this part, yet!");
 			}
+	    	setMceIgnorable();
 			marshaller.marshal(jaxbElement, os);
 
 		} catch (JAXBException e) {
 			//e.printStackTrace();
-			log.error(e);
+			log.error(e.getMessage(), e);
 			throw e;
 		}
 	}
+    
+    /**
+     * Where the mc:Ignorable attribute is present,
+     * ensure its contents matches the ignorable namespaces
+     * actually present.
+     */
+    protected void setMceIgnorable() {
+    /*	
+    	ECMA-376, Office Open XML File Formats, Part 3 deals with "Markup Compatibility and Extensibility", 
+    	and specifies mc:Ignorable.
+
+    	@mc:Ignorable, for example, in:
+
+	    	<Circles xmlns="http://schemas.openxmlformats.org/Circles/v1"
+	    	xmlns:mc="http://schemas.openxmlformats.org/markupcompatibility/
+	    	2006"
+	    	xmlns:v2="http://schemas.openxmlformats.org/Circles/v2"
+	    	xmlns:v3="http://schemas.openxmlformats.org/Circles/v3"
+	    	mc:Ignorable="v2 v3">
+	    	:
+
+    	is a whitespace-delimited list of namespace prefixes, where each namespace prefix identifies an 
+    	ignorable namespace.
+
+    	JAXB might not include a namespace declaration using prefix "v2", unless that namespace is required 
+    	in the resulting XML document.
+
+    	The problem is that if "v2" is included in the value of @mc:Ignorable, and there is no declaration 
+    	of that prefix, then Microsoft Word 2010 will report the document to be corrupt.
+
+    	So the challenge is, when marshalling, how to populate the mc:Ignorable attribute, and guarantee 
+    	a matching set of namespace declarations will be present.
+    	
+    	Suppose I have a set of ignorable prefixes (known a priori), some or all of which are used in the
+    	XML document. I want to either set the value of @mc:ignorable to the ignorable prefixes actually 
+    	used in the XML document (in which case JAXB will provide a matching set of namespace declarations), 
+    	or set the value of @mc:ignorable to the entire set of ignorable prefixes and force JAXB to declare 
+    	each of those prefixes. 
+    	
+    	Either approach is OK. In the Document Settings part, we use the first approach.  In the Main 
+    	Document Part, we use a hybrid approach.
+    */	    	
+    }
     
     /**
 	 * Unmarshal XML data from the specified InputStream and return the
@@ -289,7 +432,7 @@ public abstract class JaxbXmlPart<E> extends Part {
 					}
 											
 				} else {
-					log.error(ue);
+					log.error(ue.getMessage(), ue);
 					log.error(".. and mark not supported");
 					throw ue;
 				}
@@ -297,7 +440,7 @@ public abstract class JaxbXmlPart<E> extends Part {
 			
 
 		} catch (JAXBException e ) {
-			log.error(e);
+			log.error(e.getMessage(), e);
 			throw e;
 		}
     	
@@ -343,7 +486,7 @@ public abstract class JaxbXmlPart<E> extends Part {
 			return jaxbElement;
 			
 		} catch (JAXBException e) {
-			log.error(e);
+			log.error(e.getMessage(), e);
 			throw e;
 		}
 	}	

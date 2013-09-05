@@ -1,15 +1,31 @@
 package org.docx4j.model.fields;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.StringTokenizer;
+
 import javax.xml.bind.JAXBElement;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.docx4j.XmlUtils;
 import org.docx4j.jaxb.Context;
+import org.docx4j.wml.CTFFData;
+import org.docx4j.wml.ContentAccessor;
+import org.docx4j.wml.FldChar;
 import org.docx4j.wml.P;
 import org.docx4j.wml.R;
 import org.docx4j.wml.Text;
 
 /**
- * There are simple fields:
+ * The objective of this class is to represent a complex field
+ * (containing nested fields, if any; nested fields are 
+ * represented by FieldRef object of their own).
+ * 
+ * TODO, consider whether to make this abstract, with 
+ * differing concrete implementations for top level and nested fields.
+ * 
+ * Background. There are simple fields:
  * 
       <w:fldSimple w:instr=" DATE ">
         <w:r>
@@ -54,6 +70,10 @@ import org.docx4j.wml.Text;
 
  * A complex field can contain nested fields, in either
  * its instruction part, or result part.
+ * 
+ * we need to represent nest fields in the instructions
+ * part only (since nested fields in the results part
+ * get re-generated).
  * 
  * An example of a nested field in the instructions part:
  * 
@@ -258,11 +278,39 @@ import org.docx4j.wml.Text;
  */
 public class FieldRef {
 	
-	private P parent;
-	public P getParent() {
+	private static Logger log = LoggerFactory.getLogger(FieldRef.class);			
+	
+	public FieldRef(FldChar fldCharBegin) {
+		this.fldCharBegin = fldCharBegin;
+	}
+	
+	private FldChar fldCharBegin;
+	
+	protected String fldName = null;
+	/**
+	 * The name of the (outer most) field, for example DATE, MERGEFIELD.
+	 * 
+	 * Assume for now that this is contained in instructions.get(0).
+	 * 
+	 * @see <a href="http://webapp.docx4java.org/OnlineDemo/ecma376/WordML/file_2.html">field syntax</a>
+	 * @return
+	 */
+	public String getFldName() {
+		Object o = XmlUtils.unwrap(instructions.get(0));
+		if (o instanceof Text) {
+			return FormattingSwitchHelper.getFldSimpleName( ((Text)o).getValue() );
+		} else {
+			log.error("TODO: extract field name from " + o.getClass().getName() );
+			log.error(XmlUtils.marshaltoString(instructions.get(0), true, true) );
+			return null;
+		}
+	}	
+	
+	private ContentAccessor parent;
+	public ContentAccessor getParent() {
 		return parent;
 	}
-	public void setParent(P parent) {
+	public void setParent(ContentAccessor parent) {
 		this.parent = parent;
 	}
 
@@ -276,7 +324,6 @@ public class FieldRef {
                 <w:fldChar w:fldCharType="separate"/>
             </w:r>
             
-        Store a reference to it so we can delete it.
 	 */
 	private R beginRun;
 	public R getBeginRun() {
@@ -284,6 +331,129 @@ public class FieldRef {
 	}
 	public void setBeginRun(R beginRun) {
 		this.beginRun = beginRun;
+	}
+
+	private boolean seenSeparate=false; 
+	public boolean haveSeenSeparate() {
+		return seenSeparate;
+	}
+	public void setSeenSeparate(boolean seenSeparate) {
+		this.seenSeparate = seenSeparate;
+	}
+	
+	private void processFldBegin() {
+		formFieldProperties = fldCharBegin.getFfData();
+		customFieldData = fldCharBegin.getFldData();
+		dirty = fldCharBegin.isDirty();
+		lock = fldCharBegin.isFldLock();
+	}
+	
+	private Boolean mergeFormat;
+	/**
+	 * @return whether \* MERGEFORMAT is set
+	 */
+	public Boolean isMergeFormat() {
+		
+		if (mergeFormat==null) {
+			//Work it out. Assume for now that this is contained in instructions.get(0).
+			mergeFormat = Boolean.FALSE;
+			Object o = XmlUtils.unwrap(instructions.get(0));
+			if (o instanceof Text) {
+				String instr = ((Text)o).getValue();
+				if (instr.contains("MERGEFORMAT")) {
+					mergeFormat = Boolean.TRUE;
+				}
+			} else {
+				log.error("TODO: extract field name from " + o.getClass().getName() );
+				log.error(XmlUtils.marshaltoString(instructions.get(0), true, true) );				
+			}
+		}
+		return mergeFormat;
+	}
+
+	private boolean dirty;
+
+	/**
+	 * Specifies that this field has been flagged by an application to indicate that its current results
+	 * are invalid (stale) due to other modifications made to the document, and these contents should be 
+	 * updated before they are displayed.
+	 * @return whether stale
+	 * @see <a href="http://webapp.docx4java.org/OnlineDemo/ecma376/WordML/fldChar.html">the spec</a>
+	 */
+	public boolean isDirty() {
+		return dirty;
+	}
+	/**
+	 * @param whether stale
+	 * @see <a href="http://webapp.docx4java.org/OnlineDemo/ecma376/WordML/fldChar.html">the spec</a>
+	 */
+	public void setDirty(boolean dirty) {
+		this.dirty = dirty;
+		fldCharBegin.setDirty(dirty);
+		
+		// Note that this doesn't set dirty on any nested fields.  TODO: Consider whether it should.
+	}
+
+	private boolean lock;
+	
+	/**
+	 * @return the lock
+	 * @see <a href="http://webapp.docx4java.org/OnlineDemo/ecma376/WordML/fldChar.html">the spec</a>
+	 */
+	public boolean isLock() {
+		return lock;
+	}
+	/**
+	 * Specifies that the parent complex field shall not have its field result recalculated, even if 
+	 * an application attempts to recalculate the results of all fields in the document or a 
+	 * recalculation is explicitly requested.
+	 * 
+	 * @param lock the lock to set
+	 * @see <a href="http://webapp.docx4java.org/OnlineDemo/ecma376/WordML/fldChar.html">the spec</a>
+	 */
+	public void setLock(boolean lock) {
+		this.lock = lock;
+		fldCharBegin.setFldLock(lock);
+	}
+
+	private Text customFieldData;
+	
+	/**
+	 * application-specific data associated with this field.
+	 * 
+	 * @return the customFieldData
+	 * @see <a href="http://webapp.docx4java.org/OnlineDemo/ecma376/WordML/fldData_1.html">the spec</a>
+	 */
+	public Text getCustomFieldData() {
+		return customFieldData;
+	}
+	/**
+	 * @param customFieldData the customFieldData to set
+	 * @see <a href="http://webapp.docx4java.org/OnlineDemo/ecma376/WordML/fldData_1.html">the spec</a>
+	 */
+	public void setCustomFieldData(Text customFieldData) {
+		this.customFieldData = customFieldData;
+		fldCharBegin.setFldData(customFieldData);
+	}
+
+	private CTFFData formFieldProperties;
+
+	/**
+	 * Properties specific to FORMCHECKBOX, FORMDROPDOWN, FORMTEXT
+	 * 
+	 * @return the formFieldProperties
+	 * @see <a href="http://webapp.docx4java.org/OnlineDemo/ecma376/WordML/ffData.html">the spec</a>
+	 */
+	public CTFFData getFormFieldProperties() {
+		return formFieldProperties;
+	}
+	/**
+	 * @param formFieldProperties the formFieldProperties to set
+	 * @see <a href="http://webapp.docx4java.org/OnlineDemo/ecma376/WordML/ffData.html">the spec</a>
+	 */
+	public void setFormFieldProperties(CTFFData formFieldProperties) {
+		this.formFieldProperties = formFieldProperties;
+		fldCharBegin.setFfData(formFieldProperties);
 	}
 
 	/**
@@ -303,16 +473,35 @@ public class FieldRef {
 		this.endRun = endRun;
 	}
 	
-	private JAXBElement<Text> instrText;
-//	public JAXBElement<Text> getInstrText() {
-//		return instrText;
+	
+	/**
+	 * A list of the content between the outermost w:fldChar begin and separate elements;
+	 * in the simplest case, this will be a single w:instrText object;
+	 * in a more general case it will be a mixture of w:instrText and FieldRef objects
+	 * (and possibly other things such as w:br).
+	 */
+	private List<Object> instructions = new ArrayList<Object>();
+	/**
+	 * @return the instructions
+	 */
+	public List<Object> getInstructions() {
+		return instructions;
+	}
+	
+//	private JAXBElement<Text> instrText;
+//	public String getInstr() {
+//		return instrText.getValue().getValue();
 //	}
-	public String getInstr() {
-		return instrText.getValue().getValue();
-	}
-	public void setInstrText(JAXBElement<Text> instrText) {
-		this.instrText = instrText;
-	}
+//	public void setInstrText(JAXBElement<Text> instrTextIn) {
+//		if (this.instrText==null){
+//			this.instrText = instrTextIn;
+//		} else {
+//			// Merge
+//			String text = this.getInstr() + instrTextIn.getValue().getValue();
+//			this.instrText.getValue().setValue(text);
+//		}
+//	}
+
 
 	private R resultsSlot;
 	public R getResultsSlot() {
@@ -324,15 +513,28 @@ public class FieldRef {
 	
 	public void setResult(String val) {
 		
-		Text t = null;
-		if (resultsSlot.getContent().size()==0) {
-			t = Context.getWmlObjectFactory().createText();
-			resultsSlot.getContent().add(t);
-		} else {
-			// Assume child Text
-			t = (Text)XmlUtils.unwrap(resultsSlot.getContent().get(0));
+		resultsSlot.getContent().clear();
+		StringTokenizer st = new StringTokenizer(val, "\n\r\f"); // tokenize on the newline character, the carriage-return character, and the form-feed character
+		
+		// our docfrag may contain several runs
+		boolean firsttoken = true;
+		while (st.hasMoreTokens()) {						
+			String line = (String) st.nextToken();
+			
+			if (firsttoken) {
+				firsttoken = false;
+			} else {
+				resultsSlot.getContent().add(Context.getWmlObjectFactory().createBr());
+			}
+			
+			org.docx4j.wml.Text text = Context.getWmlObjectFactory().createText();
+			resultsSlot.getContent().add(text);
+			if (line.startsWith(" ") || line.endsWith(" ") ) {
+				// TODO: tab character?
+				text.setSpace("preserve");
+			}
+			text.setValue(line);
 		}
-		t.setValue(val);		
 	}
 
 }

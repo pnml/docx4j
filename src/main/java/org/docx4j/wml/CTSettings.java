@@ -34,6 +34,10 @@ import javax.xml.bind.annotation.XmlTransient;
 import javax.xml.bind.annotation.XmlType;
 import org.docx4j.customxml.SchemaLibrary;
 import org.docx4j.math.CTMathPr;
+import org.docx4j.w14.CTDefaultImageDpi;
+import org.docx4j.w14.CTLongHexNumber;
+import org.docx4j.w14.CTOnOff;
+import org.docx4j.w15.CTGuid;
 import org.jvnet.jaxb2_commons.ppp.Child;
 
 
@@ -258,7 +262,14 @@ import org.jvnet.jaxb2_commons.ppp.Child;
  *             &lt;/complexContent>
  *           &lt;/complexType>
  *         &lt;/element>
+ *         &lt;element ref="{http://schemas.microsoft.com/office/word/2012/wordml}chartTrackingRefBased" minOccurs="0"/>
+ *         &lt;element ref="{http://schemas.microsoft.com/office/word/2010/wordml}docId" minOccurs="0"/>
+ *         &lt;element ref="{http://schemas.microsoft.com/office/word/2012/wordml}docId" minOccurs="0"/>
+ *         &lt;element ref="{http://schemas.microsoft.com/office/word/2010/wordml}conflictMode" minOccurs="0"/>
+ *         &lt;element ref="{http://schemas.microsoft.com/office/word/2010/wordml}discardImageEditingData" minOccurs="0"/>
+ *         &lt;element ref="{http://schemas.microsoft.com/office/word/2010/wordml}defaultImageDpi" minOccurs="0"/>
  *       &lt;/sequence>
+ *       &lt;attribute ref="{http://schemas.openxmlformats.org/markup-compatibility/2006}Ignorable"/>
  *     &lt;/restriction>
  *   &lt;/complexContent>
  * &lt;/complexType>
@@ -366,7 +377,13 @@ import org.jvnet.jaxb2_commons.ppp.Child;
     "shapeDefaults",
     "doNotEmbedSmartTags",
     "decimalSymbol",
-    "listSeparator"
+    "listSeparator",
+    "chartTrackingRefBased",
+    "docId14",
+    "docId15",
+    "conflictMode",
+    "discardImageEditingData",
+    "defaultImageDpi"
 })
 @XmlRootElement(name = "settings")
 public class CTSettings
@@ -474,6 +491,20 @@ public class CTSettings
     protected BooleanDefaultTrue doNotEmbedSmartTags;
     protected CTSettings.DecimalSymbol decimalSymbol;
     protected CTSettings.ListSeparator listSeparator;
+    @XmlElement(namespace = "http://schemas.microsoft.com/office/word/2012/wordml")
+    protected BooleanDefaultTrue chartTrackingRefBased;
+    @XmlElement(name = "docId", namespace = "http://schemas.microsoft.com/office/word/2010/wordml")
+    protected CTLongHexNumber docId14;
+    @XmlElement(name = "docId", namespace = "http://schemas.microsoft.com/office/word/2012/wordml")
+    protected CTGuid docId15;
+    @XmlElement(namespace = "http://schemas.microsoft.com/office/word/2010/wordml")
+    protected CTOnOff conflictMode;
+    @XmlElement(namespace = "http://schemas.microsoft.com/office/word/2010/wordml")
+    protected CTOnOff discardImageEditingData;
+    @XmlElement(namespace = "http://schemas.microsoft.com/office/word/2010/wordml")
+    protected CTDefaultImageDpi defaultImageDpi;
+    @XmlAttribute(name = "Ignorable", namespace = "http://schemas.openxmlformats.org/markup-compatibility/2006")
+    protected String ignorable;
     @XmlTransient
     private Object parent;
 
@@ -2869,6 +2900,174 @@ public class CTSettings
     }
 
     /**
+     * Gets the value of the chartTrackingRefBased property.
+     * 
+     * @return
+     *     possible object is
+     *     {@link BooleanDefaultTrue }
+     *     
+     */
+    public BooleanDefaultTrue getChartTrackingRefBased() {
+        return chartTrackingRefBased;
+    }
+
+    /**
+     * Sets the value of the chartTrackingRefBased property.
+     * 
+     * @param value
+     *     allowed object is
+     *     {@link BooleanDefaultTrue }
+     *     
+     */
+    public void setChartTrackingRefBased(BooleanDefaultTrue value) {
+        this.chartTrackingRefBased = value;
+    }
+
+    /**
+     * Gets the value of the docId14 property.
+     * 
+     * @return
+     *     possible object is
+     *     {@link CTLongHexNumber }
+     *     
+     */
+    public CTLongHexNumber getDocId14() {
+        return docId14;
+    }
+
+    /**
+     * Sets the value of the docId14 property.
+     * 
+     * @param value
+     *     allowed object is
+     *     {@link CTLongHexNumber }
+     *     
+     */
+    public void setDocId14(CTLongHexNumber value) {
+        this.docId14 = value;
+    }
+
+    /**
+     * Gets the value of the docId15 property.
+     * 
+     * @return
+     *     possible object is
+     *     {@link CTGuid }
+     *     
+     */
+    public CTGuid getDocId15() {
+        return docId15;
+    }
+
+    /**
+     * Sets the value of the docId15 property.
+     * 
+     * @param value
+     *     allowed object is
+     *     {@link CTGuid }
+     *     
+     */
+    public void setDocId15(CTGuid value) {
+        this.docId15 = value;
+    }
+
+    /**
+     * Gets the value of the conflictMode property.
+     * 
+     * @return
+     *     possible object is
+     *     {@link CTOnOff }
+     *     
+     */
+    public CTOnOff getConflictMode() {
+        return conflictMode;
+    }
+
+    /**
+     * Sets the value of the conflictMode property.
+     * 
+     * @param value
+     *     allowed object is
+     *     {@link CTOnOff }
+     *     
+     */
+    public void setConflictMode(CTOnOff value) {
+        this.conflictMode = value;
+    }
+
+    /**
+     * Gets the value of the discardImageEditingData property.
+     * 
+     * @return
+     *     possible object is
+     *     {@link CTOnOff }
+     *     
+     */
+    public CTOnOff getDiscardImageEditingData() {
+        return discardImageEditingData;
+    }
+
+    /**
+     * Sets the value of the discardImageEditingData property.
+     * 
+     * @param value
+     *     allowed object is
+     *     {@link CTOnOff }
+     *     
+     */
+    public void setDiscardImageEditingData(CTOnOff value) {
+        this.discardImageEditingData = value;
+    }
+
+    /**
+     * Gets the value of the defaultImageDpi property.
+     * 
+     * @return
+     *     possible object is
+     *     {@link CTDefaultImageDpi }
+     *     
+     */
+    public CTDefaultImageDpi getDefaultImageDpi() {
+        return defaultImageDpi;
+    }
+
+    /**
+     * Sets the value of the defaultImageDpi property.
+     * 
+     * @param value
+     *     allowed object is
+     *     {@link CTDefaultImageDpi }
+     *     
+     */
+    public void setDefaultImageDpi(CTDefaultImageDpi value) {
+        this.defaultImageDpi = value;
+    }
+
+    /**
+     * Gets the value of the ignorable property.
+     * 
+     * @return
+     *     possible object is
+     *     {@link String }
+     *     
+     */
+    public String getIgnorable() {
+        return ignorable;
+    }
+
+    /**
+     * Sets the value of the ignorable property.
+     * 
+     * @param value
+     *     allowed object is
+     *     {@link String }
+     *     
+     */
+    public void setIgnorable(String value) {
+        this.ignorable = value;
+    }
+
+    /**
      * Gets the parent object in the object tree representing the unmarshalled xml document.
      * 
      * @return
@@ -2914,11 +3113,10 @@ public class CTSettings
      */
     @XmlAccessorType(XmlAccessType.FIELD)
     @XmlType(name = "")
-    public static class AttachedSchema
-        implements Child
+    public static class AttachedSchema implements Child
     {
 
-        @XmlAttribute(namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main")
+        @XmlAttribute(name = "val", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main")
         protected String val;
         @XmlTransient
         private Object parent;
@@ -3000,11 +3198,10 @@ public class CTSettings
      */
     @XmlAccessorType(XmlAccessType.FIELD)
     @XmlType(name = "")
-    public static class BookFoldPrintingSheets
-        implements Child
+    public static class BookFoldPrintingSheets implements Child
     {
 
-        @XmlAttribute(namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", required = true)
+        @XmlAttribute(name = "val", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", required = true)
         protected BigInteger val;
         @XmlTransient
         private Object parent;
@@ -3081,11 +3278,10 @@ public class CTSettings
      */
     @XmlAccessorType(XmlAccessType.FIELD)
     @XmlType(name = "")
-    public static class ClickAndTypeStyle
-        implements Child
+    public static class ClickAndTypeStyle implements Child
     {
 
-        @XmlAttribute(namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main")
+        @XmlAttribute(name = "val", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main")
         protected String val;
         @XmlTransient
         private Object parent;
@@ -3167,11 +3363,10 @@ public class CTSettings
      */
     @XmlAccessorType(XmlAccessType.FIELD)
     @XmlType(name = "")
-    public static class ConsecutiveHyphenLimit
-        implements Child
+    public static class ConsecutiveHyphenLimit implements Child
     {
 
-        @XmlAttribute(namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", required = true)
+        @XmlAttribute(name = "val", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", required = true)
         protected BigInteger val;
         @XmlTransient
         private Object parent;
@@ -3248,11 +3443,10 @@ public class CTSettings
      */
     @XmlAccessorType(XmlAccessType.FIELD)
     @XmlType(name = "")
-    public static class DecimalSymbol
-        implements Child
+    public static class DecimalSymbol implements Child
     {
 
-        @XmlAttribute(namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main")
+        @XmlAttribute(name = "val", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main")
         protected String val;
         @XmlTransient
         private Object parent;
@@ -3329,11 +3523,10 @@ public class CTSettings
      */
     @XmlAccessorType(XmlAccessType.FIELD)
     @XmlType(name = "")
-    public static class DefaultTableStyle
-        implements Child
+    public static class DefaultTableStyle implements Child
     {
 
-        @XmlAttribute(namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main")
+        @XmlAttribute(name = "val", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main")
         protected String val;
         @XmlTransient
         private Object parent;
@@ -3415,11 +3608,10 @@ public class CTSettings
      */
     @XmlAccessorType(XmlAccessType.FIELD)
     @XmlType(name = "")
-    public static class DisplayHorizontalDrawingGridEvery
-        implements Child
+    public static class DisplayHorizontalDrawingGridEvery implements Child
     {
 
-        @XmlAttribute(namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", required = true)
+        @XmlAttribute(name = "val", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", required = true)
         protected BigInteger val;
         @XmlTransient
         private Object parent;
@@ -3501,11 +3693,10 @@ public class CTSettings
      */
     @XmlAccessorType(XmlAccessType.FIELD)
     @XmlType(name = "")
-    public static class DisplayVerticalDrawingGridEvery
-        implements Child
+    public static class DisplayVerticalDrawingGridEvery implements Child
     {
 
-        @XmlAttribute(namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", required = true)
+        @XmlAttribute(name = "val", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", required = true)
         protected BigInteger val;
         @XmlTransient
         private Object parent;
@@ -3581,8 +3772,7 @@ public class CTSettings
      */
     @XmlAccessorType(XmlAccessType.FIELD)
     @XmlType(name = "")
-    public static class ForceUpgrade
-        implements Child
+    public static class ForceUpgrade implements Child
     {
 
         @XmlTransient
@@ -3636,11 +3826,10 @@ public class CTSettings
      */
     @XmlAccessorType(XmlAccessType.FIELD)
     @XmlType(name = "")
-    public static class ListSeparator
-        implements Child
+    public static class ListSeparator implements Child
     {
 
-        @XmlAttribute(namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main")
+        @XmlAttribute(name = "val", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main")
         protected String val;
         @XmlTransient
         private Object parent;
@@ -3722,11 +3911,10 @@ public class CTSettings
      */
     @XmlAccessorType(XmlAccessType.FIELD)
     @XmlType(name = "")
-    public static class SummaryLength
-        implements Child
+    public static class SummaryLength implements Child
     {
 
-        @XmlAttribute(namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", required = true)
+        @XmlAttribute(name = "val", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", required = true)
         protected BigInteger val;
         @XmlTransient
         private Object parent;

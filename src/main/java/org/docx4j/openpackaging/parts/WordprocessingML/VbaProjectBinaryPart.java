@@ -20,15 +20,25 @@
 
 package org.docx4j.openpackaging.parts.WordprocessingML;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.docx4j.openpackaging.exceptions.InvalidFormatException;
 import org.docx4j.openpackaging.parts.PartName;
 import org.docx4j.openpackaging.parts.relationships.Namespaces;
 
 
-public class VbaProjectBinaryPart extends BinaryPart {
+/**
+ * @see <a href="http://msdn.microsoft.com/en-us/library/cc313094(v=office.12).aspx">[MS-OVBA]</a>
+ * 
+ * Since 3.0.0, this extends OleObjectBinaryPart.
+ * Previously, it extended BinaryPart.
+ * 
+ * @author jharrop
+ *
+ */
+public class VbaProjectBinaryPart extends OleObjectBinaryPart {
 
-	private static Logger log = Logger.getLogger(VbaProjectBinaryPart.class);		
+	private static Logger log = LoggerFactory.getLogger(VbaProjectBinaryPart.class);		
 	
 	public VbaProjectBinaryPart(PartName partName) throws InvalidFormatException {
 		super(partName);

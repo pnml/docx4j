@@ -1,5 +1,5 @@
 /*
- *  Copyright 2007-2008, Plutext Pty Ltd.
+ *  Copyright 2007-2013, Plutext Pty Ltd.
  *   
  *  This file is part of docx4j.
 
@@ -19,7 +19,9 @@
  */
 
 
-package org.docx4j.wml;
+package org.docx4j.wml; 
+
+import org.jvnet.jaxb2_commons.ppp.Child;
 
 import javax.xml.bind.Unmarshaller;
 import javax.xml.bind.annotation.XmlAccessType;
@@ -27,7 +29,6 @@ import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlTransient;
 import javax.xml.bind.annotation.XmlType;
-import org.jvnet.jaxb2_commons.ppp.Child;
 
 
 /**
@@ -56,8 +57,7 @@ import org.jvnet.jaxb2_commons.ppp.Child;
     "docParts"
 })
 @XmlRootElement(name = "glossaryDocument")
-public class GlossaryDocument
-    implements Child
+public class GlossaryDocument implements Child
 {
 
     protected CTBackground background;

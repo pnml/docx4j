@@ -89,7 +89,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.docx4j.XmlUtils;
 import org.docx4j.wml.Lvl;
 import org.docx4j.wml.NumberFormat;
@@ -123,7 +124,7 @@ public class ListNumberingDefinition {
 		return numNode;
 	}
 	
-	protected static Logger log = Logger.getLogger(ListNumberingDefinition.class);
+	protected static Logger log = LoggerFactory.getLogger(ListNumberingDefinition.class);
 	
     /**
      * @param numNode
@@ -144,7 +145,29 @@ public class ListNumberingDefinition {
         } else {
             this.abstractListDefinition = abstractListDefinitions.get(abstractNumNode.getVal().toString() ); //[getAttributeValue(abstractNumNode, ValAttrName)];
             if (abstractListDefinition==null) {
-            	log.warn("No abstractListDefinition for w:numId=" + listNumberId);            	
+            	log.warn("No abstractListDefinition for w:numId=" + listNumberId);  
+            	return;
+            }
+            if (this.abstractListDefinition.getLevelCount()==0 
+            		&& this.abstractListDefinition.hasLinkedStyle()) {
+            	
+            	/* Something like:
+            	 * 
+					  <w:abstractNum w:abstractNumId="0">
+					    <w:nsid w:val="42FF6222"/>
+					    <w:multiLevelType w:val="multilevel"/>
+					    <w:tmpl w:val="0409001D"/>
+					    <w:numStyleLink w:val="MyListStyle"/>
+					  </w:abstractNum>
+            	 * 
+            	 * We need to go back to the style, which will point to a concrete numId
+            	 * which will in turn point to some *other* abstractNum!  
+            	 * Why M$ designed things this way defies logic!
+            	 * 
+            	 * This is done when NDP.resolveLinkedAbstractNum is invoked,
+            	 * typically by AbstractWmlConversionContext, prior to converting 
+            	 * the docx to HTML or PDF.
+            	 */
             }
 
             this.levels = new HashMap<String, ListLevel>(this.abstractListDefinition.getLevelCount() );

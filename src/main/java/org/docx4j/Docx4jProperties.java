@@ -3,12 +3,13 @@ package org.docx4j;
 import java.io.IOException;
 import java.util.Properties;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.docx4j.utils.ResourceUtils;
 
 public class Docx4jProperties {
 	
-	protected static Logger log = Logger.getLogger(Docx4jProperties.class);
+	protected static Logger log = LoggerFactory.getLogger(Docx4jProperties.class);
 	
 	private static Properties properties;
 	
@@ -56,5 +57,25 @@ public class Docx4jProperties {
 		if (properties==null) {init();}
 		return properties;		
 	}
+	
+	/**
+	 * Useful if a unit test requires a certain property value.
+	 * 
+	 * @since 3.0.0
+	 */
+	public static void setProperty(String key, Boolean value) {
+		if (properties==null) {init();}
+		properties.setProperty(key, value.toString());		
+	}	
+
+	/**
+	 * Useful if a unit test requires a certain property value.
+	 * 
+	 * @since 3.0.0
+	 */
+	public static void setProperty(String key, String value) {
+		if (properties==null) {init();}
+		properties.setProperty(key, value);		
+	}	
 	
 }

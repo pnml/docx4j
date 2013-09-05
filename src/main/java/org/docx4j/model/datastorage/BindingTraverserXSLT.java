@@ -1,6 +1,7 @@
 package org.docx4j.model.datastorage;
 
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.text.DateFormat;
 import java.text.Format;
 import java.text.ParseException;
@@ -11,7 +12,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.StringTokenizer;
 
-import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
 import javax.xml.transform.Source;
 import javax.xml.transform.Templates;
@@ -20,13 +20,15 @@ import javax.xml.transform.dom.DOMResult;
 import javax.xml.transform.stream.StreamSource;
 
 import org.apache.commons.codec.binary.Base64;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.apache.xalan.extensions.ExpressionContext;
 import org.apache.xmlgraphics.image.loader.ImageSize;
 import org.docx4j.XmlUtils;
-import org.docx4j.convert.in.xhtml.XHTMLImporter;
 import org.docx4j.dml.wordprocessingDrawing.Inline;
 import org.docx4j.jaxb.Context;
 import org.docx4j.model.sdt.QueryString;
+import org.docx4j.model.styles.StyleUtil;
 import org.docx4j.openpackaging.exceptions.Docx4JException;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
 import org.docx4j.openpackaging.parts.CustomXmlDataStoragePart;
@@ -38,18 +40,19 @@ import org.docx4j.openpackaging.parts.relationships.Namespaces;
 import org.docx4j.wml.CTSdtDate;
 import org.docx4j.wml.Color;
 import org.docx4j.wml.P;
-import org.docx4j.wml.RFonts;
+import org.docx4j.wml.R;
 import org.docx4j.wml.RPr;
-import org.docx4j.wml.P.Hyperlink;
+import org.docx4j.wml.SdtPr;
 import org.opendope.xpaths.Xpaths.Xpath;
 import org.w3c.dom.Document;
 import org.w3c.dom.DocumentFragment;
 import org.w3c.dom.Node;
 import org.w3c.dom.traversal.NodeIterator;
 
+
 public class BindingTraverserXSLT implements BindingTraverserInterface {
 	
-	private static Logger log = Logger.getLogger(BindingTraverserXSLT.class);		
+	private static Logger log = LoggerFactory.getLogger(BindingTraverserXSLT.class);		
 	
 
 	static Templates xslt;			
@@ -98,25 +101,47 @@ public class BindingTraverserXSLT implements BindingTraverserInterface {
 					
 			org.docx4j.XmlUtils.transform(doc, xslt, transformParameters, result);
 			
-			//part.unmarshal( ((org.w3c.dom.Document)result.getNode()).getDocumentElement() );
-			return XmlUtils.unmarshal(((org.w3c.dom.Document)result.getNode()) );
+			if (log.isDebugEnabled()) {
+				
+				org.w3c.dom.Document docResult = ((org.w3c.dom.Document)result.getNode());
+				
+				log.debug(XmlUtils.w3CDomNodeToString(docResult));
+				
+				return XmlUtils.unmarshal(docResult);
+			} else {
+				//part.unmarshal( ((org.w3c.dom.Document)result.getNode()).getDocumentElement() );
+				return XmlUtils.unmarshal(((org.w3c.dom.Document)result.getNode()) );
+			}
 			
 		} catch (Exception e) {
 			throw new Docx4JException("Problems applying bindings", e);			
 		}
 	}
 	
-	public static void log(String message ) {
+	public static void log(ExpressionContext expressionContext, String message ) {
 		
-		log.info(message);
+		//log.info( com.sun.org.apache.xalan.internal.lib.NodeInfo.lineNumber(expressionContext ) + "  " +  message);
+			// com.sun.org.apache hell 
+		// but that only gives line number of input XML anyway, whereas more useful is
+		// currently executing line number of XSLT.  ErrorListener seems to know this?  Explore some time...
+		
+		log.info( "[String] " + message);
 	}
 
+	/**
+	 * @param nodeIterator
+	 * @deprecated
+	 */
 	public static void log(NodeIterator nodeIterator ) {
-		
+	
 		Node n = nodeIterator.nextNode();		
 		log.info(XmlUtils.w3CDomNodeToString(n));
 	}
 	
+	public static void logXml(NodeIterator nodeIterator ) {
+		// Has different method, to prevent Xalan preferring the String log method
+		log(nodeIterator);
+	}
 	
 	//&lt;html&gt;&lt;body&gt;  &lt;p&gt;hello &lt;/p&gt; &lt;/body&gt;&lt;/html&gt;
 	
@@ -126,6 +151,9 @@ public class BindingTraverserXSLT implements BindingTraverserInterface {
 	 *
 	 * Note that the input XHTML must be suitable for the context 
 	 * ie you can't insert block level stuff (eg p) into a run level sdt.
+	 * 
+	 * This method requires docx4j-XHTMLImport.jar (LGPL) and its dependencies
+	 * in order to function.
 	 */
 	public static DocumentFragment convertXHTML(
 			WordprocessingMLPackage pkg, 
@@ -139,6 +167,15 @@ public class BindingTraverserXSLT implements BindingTraverserInterface {
 			String tag) {
 
 		log.debug("convertXHTML extension function for: " + sdtParent + "/w:sdt/w:sdtContent/" + contentChild);
+		
+		Class<?> xhtmlImporterClass;
+	    try {
+	        xhtmlImporterClass = Class.forName("org.docx4j.convert.in.xhtml.XHTMLImporter");
+	    } catch (ClassNotFoundException e) {
+	        log.error("docx4j-XHTMLImport jar not found. Please add this to your classpath.");
+			log.error(e.getMessage(), e);
+			return null;
+	    }		
 		
 		QueryString qs = new QueryString();
 		HashMap<String, String> map = qs.parseQueryString(tag, true);
@@ -171,17 +208,23 @@ public class BindingTraverserXSLT implements BindingTraverserInterface {
 			org.w3c.dom.Document docContainer = XmlUtils.neww3cDomDocument();
 			DocumentFragment docfrag = docContainer.createDocumentFragment();
 			
-			XHTMLImporter.setHyperlinkStyle(BindingHandler.getHyperlinkStyleId());
+			// XHTMLImporter.setHyperlinkStyle(BindingHandler.getHyperlinkResolver().getHyperlinkStyleId());
+	        Method setHyperlinkStyleMethod = xhtmlImporterClass.getMethod("setHyperlinkStyle", String.class);
+	        setHyperlinkStyleMethod.invoke(null, 
+	        		BindingHandler.getHyperlinkResolver().getHyperlinkStyleId());
+			
 			String baseUrl = null;
 			List<Object> results = null;
 			try {
-				results = XHTMLImporter.convert(r, baseUrl, pkg );
+				//results = XHTMLImporter.convert(r, baseUrl, pkg );
+		        Method convertMethod = xhtmlImporterClass.getMethod("convert", String.class, String.class, WordprocessingMLPackage.class );
+		        results = (List<Object>)convertMethod.invoke(null, r, baseUrl, pkg);
+		        
 			} catch (Exception e) {
 				if (e instanceof NullPointerException) {
 					((NullPointerException)e).printStackTrace();
 				}
-				log.error(e);
-				log.error("with XHTML: " + r);
+				log.error("with XHTML: " + r, e);
 				//throw new Docx4JException("Problem converting XHTML", e);
 				
 				String errMsg = e.getMessage() + " with XHTML from " + xpathExp + " : " + r; 
@@ -245,7 +288,59 @@ public class BindingTraverserXSLT implements BindingTraverserInterface {
 					&& sdtParent.equals("p")) {
 				// Importer class always returns run-level content wrapped in a w:p 
 				// so extract contents
-				for (Object o : ((P)results.get(0)).getContent() ) {							
+				
+				if (results.size()>1) {
+					log.warn("In paragraph context, so extra block-level content is being discarded!");
+				}
+				
+				RPr rPrSDT = null;
+				Node rPrNode = rPrNodeIt.nextNode();
+				if (rPrNode!=null) {
+					rPrSDT = (RPr)XmlUtils.unmarshal(rPrNode);
+				}
+								
+				for (Object o : ((P)results.get(0)).getContent() ) {
+					
+					if (o instanceof R) {
+
+						// Start with rPrSDT,
+						// and then superimpose on top anything which comes
+						// from the CSS. 
+						
+						if (rPrSDT==null) {
+							// Leave the CSS rPr as it is
+						} else {
+							RPr cssRPR = ((R)o).getRPr(); 
+							if (cssRPR==null) {
+								((R)o).setRPr(rPrSDT);																
+							} else {
+								log.debug("CSS rPR: " + XmlUtils.marshaltoString(cssRPR, true, true));
+								RPr baseRPR = XmlUtils.deepCopy(rPrSDT);
+								
+								// We want to apply
+								// real CSS settings, but not the defaults eg those in 
+								// src/main/resources/XhtmlNamespaceHandler.css								
+								// CSS defaults are:
+								//  <w:color w:val="000000"/>
+								//  <w:sz w:val="22"/>	
+								// We want to ignore those.
+								if (rPrSDT.getColor()!=null
+										&& cssRPR.getColor()!=null
+										&& cssRPR.getColor().getVal().equals("000000")) {
+									cssRPR.setColor(null);
+								}
+								if (rPrSDT.getSz()!=null
+										&& cssRPR.getSz()!=null
+										&& cssRPR.getSz().getVal().toString().equals("22")) {
+									cssRPR.setSz(null);
+								}
+								
+								StyleUtil.apply(cssRPR, baseRPR);
+								((R)o).setRPr(baseRPR);								
+							}
+						}
+					}					
+					
 					Document tmpDoc = XmlUtils.marshaltoW3CDomDocument(o);
 					XmlUtils.treeCopy(tmpDoc.getDocumentElement(), docfrag);													
 				}
@@ -263,29 +358,109 @@ public class BindingTraverserXSLT implements BindingTraverserInterface {
 					
 				}
 			}
-			
-			System.out.println("returning...");
-			
+						
 			return docfrag;			
 			
 		} catch (Exception e) {
-			log.error(e);
+			log.error(e.getMessage(), e);
 			return null;
 		}
 	}
 	
+	/**
+	 * bind.xslt calls this, for case where 'od:xpath' is present
+	 */	
+	public static DocumentFragment xpathGenerateRuns(
+			WordprocessingMLPackage pkg, 
+			JaxbXmlPart sourcePart,				
+			Map<String, CustomXmlPart> customXmlDataStorageParts,
+			XPathsPart xPathsPart,
+			NodeIterator sdtPrNodeIt, 
+			String sdtParent,
+			String contentChild,				
+			boolean multiLine) {
+		
+		SdtPr sdtPr = null;
+		Node sdtPrNode = sdtPrNodeIt.nextNode();
+		try {
+			sdtPr = (SdtPr)XmlUtils.unmarshal(sdtPrNode);
+		} catch (JAXBException e) {
+			log.error(e.getMessage(), e);
+		}
+		String odTag = sdtPr.getTag().getVal();
+		
+		QueryString qs = new QueryString();
+		HashMap<String, String> map = qs.parseQueryString(odTag, true);
+		
+		String xpathId = map.get(OpenDoPEHandler.BINDING_ROLE_XPATH);
+		
+		log.debug("Looking for xpath with id: " + xpathId + " referenced from part " + sourcePart.getPartName().getName() + " at " + odTag);
+		
+		Xpath xpath = null;
+		try {
+			xpath = xPathsPart.getXPathById(xPathsPart.getJaxbElement(), xpathId);
+		} catch (InputIntegrityException iie) {
+			log.error("Couldn't find xpath with id: " + xpathId + " referenced from part " + sourcePart.getPartName().getName() + " at " + odTag);
+			throw iie;
+			
+			// Could fallback to trying to use the databinding sdtPr, but would need to pass that in
+		}
+		
+		String storeItemId = xpath.getDataBinding().getStoreItemID();
+		String xpathExp = xpath.getDataBinding().getXpath();
+		String prefixMappings = xpath.getDataBinding().getPrefixMappings();
+		
+		return xpathGenerateRuns(
+				 pkg, 
+				 sourcePart,				
+				 customXmlDataStorageParts,
+				 storeItemId,  xpathExp,  prefixMappings,
+				 sdtPr, sdtParent, contentChild,
+				  multiLine);
+	}
+	
 	
 	/**
+	 * bind.xslt calls this, for case where 'od:xpath' is not present
 	 */
 	public static DocumentFragment xpathGenerateRuns(
 			WordprocessingMLPackage pkg, 
 			JaxbXmlPart sourcePart,				
 			Map<String, CustomXmlPart> customXmlDataStorageParts,
 			String storeItemId, String xpath, String prefixMappings,
+			NodeIterator sdtPrNodeIt, 			
 			String sdtParent,
 			String contentChild,				
-			NodeIterator rPrNodeIt, boolean multiLine,
-			String tag) {
+			boolean multiLine) {
+
+		SdtPr sdtPr = null;
+		Node sdtPrNode = sdtPrNodeIt.nextNode();
+		try {
+			sdtPr = (SdtPr)XmlUtils.unmarshal(sdtPrNode);
+		} catch (JAXBException e) {
+			log.error(e.getMessage(), e);
+		}
+		
+		return xpathGenerateRuns(
+				 pkg, 
+				 sourcePart,				
+				 customXmlDataStorageParts,
+				 storeItemId,  xpath,  prefixMappings,
+				 sdtPr, 			
+				 sdtParent,
+				 contentChild,				
+				  multiLine);
+	}
+	
+	public static DocumentFragment xpathGenerateRuns(
+			WordprocessingMLPackage pkg, 
+			JaxbXmlPart sourcePart,				
+			Map<String, CustomXmlPart> customXmlDataStorageParts,
+			String storeItemId, String xpath, String prefixMappings,
+			SdtPr sdtPr, 			
+			String sdtParent,
+			String contentChild,				
+			 boolean multiLine) {
 		
 		/**
 		 * TODO test cases:
@@ -303,12 +478,14 @@ public class BindingTraverserXSLT implements BindingTraverserInterface {
 		DocumentFragment docfrag = docContainer.createDocumentFragment();
 		
 		try {
-			log.info(xpath + " yielded result " + r);
+			log.info(xpath + " yielded result '" + r + "'");
 			
 			RPr rPr = null;
-			Node rPrNode = rPrNodeIt.nextNode();
-			if (rPrNode!=null) {
-				rPr = (RPr)XmlUtils.unmarshal(rPrNode);
+			for (Object o : sdtPr.getRPrOrAliasOrLock() ) {
+				if (o instanceof RPr) {
+					rPr = (RPr)o;
+					break;
+				}
 			}
 
 			org.docx4j.wml.ObjectFactory factory = new org.docx4j.wml.ObjectFactory();
@@ -342,13 +519,14 @@ public class BindingTraverserXSLT implements BindingTraverserInterface {
 			}				
 			
 		} catch (Exception e) {
-			log.error(e);
+			log.error(e.getMessage(), e);
 			return null;
 		}
 		
 		return docfrag;			
 	}
 
+	
 	private static void addBrRunToDocFrag(DocumentFragment docfrag, RPr rPr) throws JAXBException {
 		
 		// Not sure whether there is ever anything of interest in the rPr, 
@@ -364,21 +542,20 @@ public class BindingTraverserXSLT implements BindingTraverserInterface {
 	}
 	
 	private static void processString(JaxbXmlPart sourcePart, DocumentFragment docfrag, String text, RPr rPr) throws JAXBException {
-		
-		// Since we'll calculate min, we don't want -1 for no match
-		int NOT_FOUND = 99999;
-		int pos1 = text.indexOf("http://")==-1 ? NOT_FOUND : text.indexOf("http://");
-		int pos2 = text.indexOf("https://")==-1 ? NOT_FOUND : text.indexOf("https://");
-		int pos3 = text.indexOf("mailto:")==-1 ? NOT_FOUND : text.indexOf("mailto:");
-		
-		int pos = Math.min(pos1,  Math.min(pos2, pos3));
-		
-		if (pos==NOT_FOUND || BindingHandler.getHyperlinkStyleId() == null) {				
+				
+		int pos = BindingHandler.getHyperlinkResolver().getIndexOfURL(text);
+		if (pos==-1 || BindingHandler.getHyperlinkStyleId() == null) {				
 			addRunToDocFrag(sourcePart, docfrag,  text,  rPr);
 			return;
 		} 
 		
 		// There is a hyperlink to deal with
+		
+		// We'll need to remove:
+		//   <w:dataBinding w:storeItemID="{5448916C-134B-45E6-B8FE-88CC1FFC17C3}" w:xpath="/myxml[1]/element2[1]" w:prefixMappings=""/>
+		//   <w:text w:multiLine="true"/>
+		// or Word can't open the resulting docx, but we can't do it here,
+		// since sdtPr is in effect read only.  So it is done in bind.xslt
 		
 		if (pos==0) {
 			int spacePos = text.indexOf(" ");
@@ -402,7 +579,7 @@ public class BindingTraverserXSLT implements BindingTraverserInterface {
 		
 		addRunToDocFrag( sourcePart,  docfrag,  first, rPr);
 		// .. now the recursive bit ..
-		processString(sourcePart,  docfrag,  rest,  rPr);				
+		processString(sourcePart,  docfrag,  rest, rPr);				
 	}
 	
 	private static void addRunToDocFrag(JaxbXmlPart sourcePart, DocumentFragment docfrag, String string, RPr rPr) {
@@ -415,18 +592,20 @@ public class BindingTraverserXSLT implements BindingTraverserInterface {
 		run.getRunContent().add(text);
 		if (string.startsWith(" ") || string.endsWith(" ") ) {
 			// TODO: tab character?
+			log.debug("setting xml:space=preserve for '" + string + "'");
 			text.setSpace("preserve");
 		}
 		text.setValue(string);
 					
 		Document tmpDoc = XmlUtils.marshaltoW3CDomDocument(run);
-		
+				
 		// avoid WRONG_DOCUMENT_ERR: A node is used in a different document than the one that created it.
 		// but  NOT_SUPPORTED_ERR: The implementation does not support the requested type of object or operation. 
 		// at com.sun.org.apache.xerces.internal.dom.CoreDocumentImpl.importNode
 		// docfrag.appendChild(fragdoc.importNode(document, true));
 		// so:			
-		XmlUtils.treeCopy(tmpDoc.getDocumentElement(), docfrag);						
+		XmlUtils.treeCopy(tmpDoc.getDocumentElement(), docfrag);
+				
 	}
 	
 	private static void addHyperlinkToDocFrag(JaxbXmlPart sourcePart, DocumentFragment docfrag, String url) throws JAXBException {
@@ -443,22 +622,10 @@ public class BindingTraverserXSLT implements BindingTraverserInterface {
 		rel.setTarget(url);
 		rel.setTargetMode("External");  
 								
-		sourcePart.getRelationshipsPart().addRelationship(rel);
-		
-		// addRelationship sets the rel's @Id
-		
-		String hpl = "<w:hyperlink r:id=\"" + rel.getId() + "\" xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" " +
-        "xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" >" +
-        "<w:r>" +
-        "<w:rPr>" +
-        "<w:rStyle w:val=\"" + BindingHandler.getHyperlinkStyleId() + "\" />" +  // TODO: enable this style in the document!
-        "</w:rPr>" +
-        "<w:t>" + url + "</w:t>" +
-        "</w:r>" +
-        "</w:hyperlink>";
+		sourcePart.getRelationshipsPart().addRelationship(rel);  // addRelationship sets the rel's @Id
 
 		Document tmpDoc = XmlUtils.marshaltoW3CDomDocument(
-				(Hyperlink)XmlUtils.unmarshalString(hpl));
+				BindingHandler.getHyperlinkResolver().generateHyperlink(rel.getId(), url));
 		XmlUtils.treeCopy(tmpDoc.getDocumentElement(), docfrag);						
 	}
 	
@@ -471,7 +638,8 @@ public class BindingTraverserXSLT implements BindingTraverserInterface {
 			String contentChild,
 			String cx, String cy) {
 
-		log.debug("sdt's parent: " + sdtParent);
+		log.debug("parent: " + sdtParent);
+		log.debug("child: " + contentChild);
 		
 		// TODO: remove any images in package which are no longer used.
 		// Needs to be done once after BindingHandler has been done
@@ -484,7 +652,7 @@ public class BindingTraverserXSLT implements BindingTraverserInterface {
 		}
 		try {
 			String xpResult = part.getData().xpathGetString(xpath, prefixMappings);
-			log.debug(xpath + " yielded result " + xpResult);
+			log.debug(xpath + " yielded result length" + xpResult.length());
 			
 			// Base64 decode it
 			byte[] bytes = Base64.decodeBase64( xpResult.getBytes("UTF8") );
@@ -532,14 +700,15 @@ public class BindingTraverserXSLT implements BindingTraverserInterface {
 				tc.getContent().add(p);
 			}
 			org.docx4j.wml.R  run = factory.createR();		
+			org.docx4j.wml.Drawing drawing = factory.createDrawing();		
+			run.getContent().add(drawing);		
+			drawing.getAnchorOrInline().add(inline);
+
 			if (sdtParent.equals("body")
 					|| sdtParent.equals("tr") 
 					|| sdtParent.equals("tc") ) {
 				p.getContent().add(run);
-			}
-			org.docx4j.wml.Drawing drawing = factory.createDrawing();		
-			run.getContent().add(drawing);		
-			drawing.getAnchorOrInline().add(inline);
+			} 
 			
 			
 			/* return following node
@@ -551,24 +720,28 @@ public class BindingTraverserXSLT implements BindingTraverserInterface {
 			              	etc
 				 */
 			
-			//System.out.println(XmlUtils.marshaltoString(run, false));
 			
 			Document document = null;
 			
 			if (sdtParent.equals("body")
 					|| sdtParent.equals("tc") ) {
 				document = XmlUtils.marshaltoW3CDomDocument(p);
+				log.debug(XmlUtils.marshaltoString(p, true, true));
 			} else if ( sdtParent.equals("tr") ) {
 				document = XmlUtils.marshaltoW3CDomDocument(tc);
+				log.debug(XmlUtils.marshaltoString(tc, true, true));
 			} else if ( sdtParent.equals("p") ) {
 				document = XmlUtils.marshaltoW3CDomDocument(run);
+				log.debug(XmlUtils.marshaltoString(run, true, true));
 			} else if ( sdtParent.equals("sdtContent") ) {					
 				log.info("contentChild: " + contentChild);
 				if (contentChild.equals("p")) {
 					p.getContent().add(run);
 					document = XmlUtils.marshaltoW3CDomDocument(p);						
+					log.debug(XmlUtils.marshaltoString(p, true, true));
 				} else if (contentChild.equals("r")) {
 					document = XmlUtils.marshaltoW3CDomDocument(run);						
+					log.debug(XmlUtils.marshaltoString(run, true, true));
 				} else {
 					log.error("how to inject image for unexpected sdt's content: " + contentChild);					
 				}
@@ -587,44 +760,6 @@ public class BindingTraverserXSLT implements BindingTraverserInterface {
 		} 
 	}
 	
-	public static DocumentFragment xpathGenerateRuns(
-			WordprocessingMLPackage pkg, 
-			JaxbXmlPart sourcePart,				
-			Map<String, CustomXmlPart> customXmlDataStorageParts,
-			XPathsPart xPathsPart,
-			String odTag, 
-			String sdtParent,
-			String contentChild,				
-			NodeIterator rPrNodeIt, boolean multiLine) {
-		
-		QueryString qs = new QueryString();
-		HashMap<String, String> map = qs.parseQueryString(odTag, true);
-		
-		String xpathId = map.get(OpenDoPEHandler.BINDING_ROLE_XPATH);
-		
-		log.info("Looking for xpath by id: " + xpathId);
-	
-		
-		Xpath xpath = xPathsPart.getXPathById(xPathsPart.getJaxbElement(), xpathId);
-		
-		if (xpath==null) {
-			log.warn("Couldn't find xpath with id: " + xpathId);
-			return null;
-		}
-		
-		String storeItemId = xpath.getDataBinding().getStoreItemID();
-		String xpathExp = xpath.getDataBinding().getXpath();
-		String prefixMappings = xpath.getDataBinding().getPrefixMappings();
-		
-		return xpathGenerateRuns(
-				 pkg, 
-				 sourcePart,				
-				 customXmlDataStorageParts,
-				 storeItemId,  xpathExp,  prefixMappings,
-				 sdtParent, contentChild,
-				 rPrNodeIt,  multiLine, odTag);
-		
-	}
 	
 	public static String getRepeatPositionCondition(
 			XPathsPart xPathsPart,				
@@ -633,7 +768,7 @@ public class BindingTraverserXSLT implements BindingTraverserInterface {
 		QueryString qs = new QueryString();
 		HashMap<String, String> map = qs.parseQueryString(odTag, true);
 		
-		String xpathId = map.get("od:RptPosCon");
+		String xpathId = map.get(OpenDoPEHandler.BINDING_ROLE_RPT_POS_CON);
 		
 		log.info("Looking for xpath by id: " + xpathId);
 		Xpath xpath = xPathsPart.getXPathById(xPathsPart.getJaxbElement(), xpathId);
@@ -671,7 +806,7 @@ public class BindingTraverserXSLT implements BindingTraverserInterface {
 			return docfrag;
 			
 		} catch (Exception e) {
-			log.error(e);
+			log.error(e.getMessage(), e);
 			return null;
 		}
 		
@@ -727,7 +862,7 @@ public class BindingTraverserXSLT implements BindingTraverserInterface {
 			DateFormat dateTimeFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
 			
 			String format = sdtDate.getDateFormat().getVal();
-			System.out.println("Using format: " + format);
+			log.debug("Using format: " + format);
 			
 			// C# dddd (eg "Monday') needs translation
 			// to "EEEE"
@@ -786,7 +921,7 @@ public class BindingTraverserXSLT implements BindingTraverserInterface {
 			return docfrag;
 			
 		} catch (Exception e) {
-			log.error(e);
+			log.error(e.getMessage(), e);
 			return null;
 		}
 		

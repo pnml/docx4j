@@ -71,7 +71,7 @@ public class BinaryPart extends Part {
 			log.debug(".. done" );
 		} catch (IOException e) {
 			//e.printStackTrace();
-			log.error(e);
+			log.error(e.getMessage(), e);
 		} finally {
 			try {
 				log.debug("closing binary input stream");
@@ -79,7 +79,7 @@ public class BinaryPart extends Part {
 				log.info(".. closed.");
 			} catch (Exception nested) {
 				// ignored
-				log.error(nested);				
+				log.error(nested.getMessage(), nested);				
 			}
 		}
 	}	
@@ -122,35 +122,40 @@ public class BinaryPart extends Part {
 		} else {
 
 			res = (this.bbRef != null) ? this.bbRef.get() : null;
-			if (res == null) {
-				// no cached buffer, load part data now			
-				PartStore partStore = this.getPackage().getPartStore();
-				InputStream in=null;
+			if (this.getPackage()==null) {
+				log.warn("No package owns this part.");
+				return null;				
+			}
+			// no cached buffer, try to load part data now			
+			PartStore partStore = this.getPackage().getPartStore();
+			if (partStore==null) {
+				log.warn("No PartStore configured for this package");
+				return null;
+			} if (res == null) {
+				InputStream is=null;
 				try {
 					String name = this.partName.getName();
-					in = partStore.loadPart( 
-							name.substring(1));
-					if (in==null) {
+					
+					try {
+						this.setContentLengthAsLoaded(
+								partStore.getPartSize( name.substring(1)));
+					} catch (UnsupportedOperationException uoe) {}
+					
+					is = partStore.loadPart( name.substring(1));
+					if (is==null) {
 						log.warn(name + " missing from part store");
 					} else {
-						res = BufferUtil.readInputStream(in);
+						res = BufferUtil.readInputStream(is);
 						// Store buffer thru soft reference so it could be
 						// unloaded by the java vm if free memory is low.
 						this.bbRef = new SoftReference<ByteBuffer>(res);
 					}
 				} catch (Docx4JException e) {
-					log.error(e);
+					log.error(e.getMessage(), e);
 				} catch (IOException e) {
-					log.error(e);
+					log.error(e.getMessage(), e);
 				} finally {
-					IOUtils.closeQuietly(in);
-	//				if (zf != null) {
-	//					try {
-	//						zf.close();
-	//					} catch (IOException ex) {
-	//						// ignored
-	//					}
-	//				}
+					IOUtils.closeQuietly(is);
 				}
 			
 			}			

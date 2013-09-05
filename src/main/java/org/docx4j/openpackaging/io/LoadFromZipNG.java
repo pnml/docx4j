@@ -43,11 +43,14 @@ import java.util.zip.ZipInputStream;
 import javax.xml.bind.JAXBElement;
 import javax.xml.bind.Unmarshaller;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.docx4j.XmlUtils;
+import org.docx4j.docProps.coverPageProps.CoverPageProperties;
 import org.docx4j.jaxb.Context;
 import org.docx4j.model.datastorage.CustomXmlDataStorage;
 import org.docx4j.openpackaging.Base;
+import org.docx4j.openpackaging.PackageRelsUtil;
 import org.docx4j.openpackaging.URIHelper;
 import org.docx4j.openpackaging.contenttype.ContentType;
 import org.docx4j.openpackaging.contenttype.ContentTypeManager;
@@ -56,6 +59,7 @@ import org.docx4j.openpackaging.exceptions.InvalidFormatException;
 import org.docx4j.openpackaging.exceptions.PartUnrecognisedException;
 import org.docx4j.openpackaging.packages.OpcPackage;
 import org.docx4j.openpackaging.parts.DefaultXmlPart;
+import org.docx4j.openpackaging.parts.DocPropsCoverPagePart;
 import org.docx4j.openpackaging.parts.Part;
 import org.docx4j.openpackaging.parts.PartName;
 import org.docx4j.openpackaging.parts.XmlPart;
@@ -85,7 +89,7 @@ public class LoadFromZipNG extends Load {
 	
 	//public HashMap<String, ByteArray> partByteArrays = new HashMap<String, ByteArray>();	
 	
-	private static Logger log = Logger.getLogger(LoadFromZipNG.class);
+	private static Logger log = LoggerFactory.getLogger(LoadFromZipNG.class);
 
 	// Testing
 	public static void main(String[] args) throws Exception {
@@ -212,33 +216,23 @@ public class LoadFromZipNG extends Load {
 		} catch (NullPointerException e) {
 			throw new Docx4JException("Couldn't get [Content_Types].xml from ZipFile", e);
 		}
-				
-		OpcPackage p = ctm.createPackage();
 		
-		// 3. Get [Content_Types].xml
-//		Once we've got this, then we can look up the content type for
-//		each PartName, and use it in the Part constructor.
-//		p.setContentTypeManager(ctm); - 20080111 - done by ctm.createPackage();
-		
-//		unusedZipEntries.put("[Content_Types].xml", new Boolean(false));
-		
-		// 4. Start with _rels/.rels
-
-//		<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-//		  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>
-//		  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>
-//		  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
-//		</Relationships>		
-		
+		// .. now find the name of the main part
 		String partName = "_rels/.rels";
-		RelationshipsPart rp = getRelationshipsPartFromZip(p, partByteArrays,  partName);		
+		RelationshipsPart rp = getRelationshipsPartFromZip(null, partByteArrays, partName);
+		if (rp==null) {
+			throw new Docx4JException("_rels/.rels appears to be missing from this package!");
+		}
+		
+		String mainPartName = PackageRelsUtil.getNameOfMainPart(rp);
+		String pkgContentType = ctm.getContentType(new PartName("/" + mainPartName));
+
+		// 2. Create a new Package; this'll return the appropriate subclass
+		OpcPackage p = ctm.createPackage(pkgContentType);
+		log.info("Instantiated package of type " + p.getClass().getName() );
+
 		p.setRelationships(rp);
-		//rp.setPackageRelationshipPart(true);
-		
-//		unusedZipEntries.put(partName, new Boolean(false));
-		
-		
-		log.debug( "Object created for: " + partName);
+		rp.setSourceP(p); //
 		
 		// 5. Now recursively 
 //		(i) create new Parts for each thing listed
@@ -594,7 +588,13 @@ public class LoadFromZipNG extends Load {
 						
 						PartName name = part.getPartName();
 						
-						if (o instanceof org.opendope.conditions.Conditions) {
+						if (o instanceof CoverPageProperties) {
+							
+							part = new DocPropsCoverPagePart(name);							
+							((DocPropsCoverPagePart)part).setJaxbElement(
+									(CoverPageProperties)o);
+							
+						} else if (o instanceof org.opendope.conditions.Conditions) {
 							
 							part = new ConditionsPart(name);
 							((ConditionsPart)part).setJaxbElement(

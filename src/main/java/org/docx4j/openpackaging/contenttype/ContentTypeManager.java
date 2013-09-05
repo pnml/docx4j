@@ -62,7 +62,8 @@ import javax.xml.bind.JAXBException;
 import javax.xml.bind.Marshaller;
 import javax.xml.bind.Unmarshaller;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.docx4j.XmlUtils;
 import org.docx4j.jaxb.Context;
 import org.docx4j.jaxb.NamespacePrefixMapperUtils;
@@ -106,6 +107,7 @@ import org.docx4j.openpackaging.parts.WordprocessingML.MetafileEmfPart;
 import org.docx4j.openpackaging.parts.WordprocessingML.MetafileWmfPart;
 import org.docx4j.openpackaging.parts.WordprocessingML.NumberingDefinitionsPart;
 import org.docx4j.openpackaging.parts.WordprocessingML.ObfuscatedFontPart;
+import org.docx4j.openpackaging.parts.WordprocessingML.OleObjectBinaryPart;
 import org.docx4j.openpackaging.parts.WordprocessingML.StyleDefinitionsPart;
 import org.docx4j.openpackaging.parts.WordprocessingML.VbaDataPart;
 import org.docx4j.openpackaging.parts.WordprocessingML.VbaProjectBinaryPart;
@@ -123,7 +125,7 @@ import org.glox4j.openpackaging.packages.GloxPackage;
  */
 public class ContentTypeManager  {
 	
-	protected static Logger log = Logger.getLogger(ContentTypeManager.class);
+	protected static Logger log = LoggerFactory.getLogger(ContentTypeManager.class);
 	
 	/**
 	 * Content type part name.
@@ -313,6 +315,12 @@ public class ContentTypeManager  {
 			epp.setContentType(new ContentType(contentType));
 			return epp;
 
+		} else if (rel!=null && rel.getType().equals(Namespaces.OLE_OBJECT) ) {
+			
+			OleObjectBinaryPart olePart = new OleObjectBinaryPart(new PartName(partName));
+			olePart.setContentType(new ContentType(contentType));
+			return olePart;
+			
 		} else if (contentType.equals(ContentTypes.WORDPROCESSINGML_DOCUMENT)) { 
 			return CreateMainDocumentPartObject(partName);
 			// how is the main document distinguished from the glossary document?
@@ -391,12 +399,8 @@ public class ContentTypeManager  {
 		} else if (contentType.equals(ContentTypes.IMAGE_WMF)) {
 			return new MetafileWmfPart(new PartName(partName));
 		} else if (contentType.equals(ContentTypes.VML_DRAWING)) {
-			
-			if (partName.endsWith(".xml") ) {			
-				return new VMLPart(new PartName(partName));
-			} else {
-				return new VMLBinaryPart(new PartName(partName));				
-			}
+			return new VMLPart(new PartName(partName));
+//			return new VMLBinaryPart(new PartName(partName));				
 		} else if (contentType.equals(ContentTypes.DRAWINGML_DIAGRAM_DRAWING)) {
 			return new org.docx4j.openpackaging.parts.DrawingML.DiagramDrawingPart(new PartName(partName));
 		} else if (contentType.startsWith("application/vnd.openxmlformats-officedocument.drawing")) {
@@ -427,12 +431,14 @@ public class ContentTypeManager  {
 			} catch (Exception e) {
 				return new BinaryPart( new PartName(partName));				
 			}
+		} else if (contentType.equals(ContentTypes.OFFICEDOCUMENT_THEME_OVERRIDE)) {
+			return new org.docx4j.openpackaging.parts.DrawingML.ThemeOverridePart(new PartName(partName));		
 		} else if (contentType.equals(ContentTypes.DIGITAL_SIGNATURE_XML_SIGNATURE_PART)) {
 			return new org.docx4j.openpackaging.parts.digitalsignature.XmlSignaturePart(new PartName(partName));
 		} else if (contentType.equals(ContentTypes.APPLICATION_XML)
 				|| partName.endsWith(".xml")) {
 			
-			// WARNING: not currently used!  See OFFICEDOCUMENT_CUSTOMXML_DATASTORAGE above.
+			// Rarely (but sometimes) used, owing to OFFICEDOCUMENT_CUSTOMXML_DATASTORAGE above.
 			
 			// Simple minded detection of XML content.
 			// If it turns out not to be XML, the zip loader
@@ -695,7 +701,7 @@ public class ContentTypeManager  {
 			}
 			
 		} catch (Exception e ) {
-			log.error(e);
+			log.error(e.getMessage(), e);
 			throw new InvalidFormatException("Bad [Content_Types].xml", e);
 		}
 		
@@ -755,7 +761,7 @@ public class ContentTypeManager  {
 
 		} catch (JAXBException e) {
 			//e.printStackTrace();
-			log.error(e);
+			log.error(e.getMessage(), e);
 			throw e;
 		}
     }
@@ -773,70 +779,51 @@ public class ContentTypeManager  {
 
 		} catch (JAXBException e) {
 			//e.printStackTrace();
-			log.error(e);
+			log.error(e.getMessage(), e);
 			throw e;
 		}
 	}
 
 	
 
-	/* Return a package of the appropriate type.  Used when loading an existing
-	 * Package, with an already populated [Content_Types].xml.  When 
-	 * creating a new Package, start with the new WordprocessingMLPackage constructor. */
-	public OpcPackage createPackage() throws InvalidFormatException {
+	/** Return a package of the appropriate type.  Used when loading an existing
+	 *  Package, with an already populated [Content_Types].xml.  When 
+	 *  creating a new Package, start with the new WordprocessingMLPackage constructor. */
+	public OpcPackage createPackage(String pkgContentType) throws InvalidFormatException {
 		
-		/*
-		 * How do we know what type of Package this is?
-		 * 
-		 * In principle, either:
-		 * 
-		 * 1. We were told its file extension or mime type in the
-		 * constructor/method parameters, or
-		 * 
-		 * 2. Because [Content_Types].xml contains an override for PartName
-		 * /document.xml of content type
-		 * application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml
-		 * 
-		 * The latter approach is more reliable, so ..
-		 * 
-		 */
-// debugPrint(ctmDocument);
 		OpcPackage p;
 		
 		  
-		
-		if (getPartNameOverridenByContentType(ContentTypes.WORDPROCESSINGML_DOCUMENT) != null
-				|| getPartNameOverridenByContentType(ContentTypes.WORDPROCESSINGML_DOCUMENT_MACROENABLED) != null
-				|| getPartNameOverridenByContentType(ContentTypes.WORDPROCESSINGML_TEMPLATE ) != null
-				|| getPartNameOverridenByContentType(ContentTypes.WORDPROCESSINGML_TEMPLATE_MACROENABLED) != null ) {
+		// Check overrides first
+		if (pkgContentType.equals(ContentTypes.WORDPROCESSINGML_DOCUMENT) 
+				|| pkgContentType.equals(ContentTypes.WORDPROCESSINGML_DOCUMENT_MACROENABLED)
+				|| pkgContentType.equals(ContentTypes.WORDPROCESSINGML_TEMPLATE ) 
+				|| pkgContentType.equals(ContentTypes.WORDPROCESSINGML_TEMPLATE_MACROENABLED)  ) {
 			log.info("Detected WordProcessingML package ");
 			p = new WordprocessingMLPackage(this);
 			return p;
-		} else if (getPartNameOverridenByContentType(ContentTypes.PRESENTATIONML_MAIN) != null
-				|| getPartNameOverridenByContentType(ContentTypes.PRESENTATIONML_TEMPLATE) != null
-				|| getPartNameOverridenByContentType(ContentTypes.PRESENTATIONML_SLIDESHOW) != null) {
+		} else if (pkgContentType.equals(ContentTypes.PRESENTATIONML_MAIN) 
+				|| pkgContentType.equals(ContentTypes.PRESENTATIONML_TEMPLATE) 
+				|| pkgContentType.equals(ContentTypes.PRESENTATIONML_SLIDESHOW) ) {
 			log.info("Detected PresentationMLPackage package ");
 			p = new PresentationMLPackage(this);
 			return p;
-		} else if (getPartNameOverridenByContentType(ContentTypes.SPREADSHEETML_WORKBOOK) != null
-				|| getPartNameOverridenByContentType(ContentTypes.SPREADSHEETML_WORKBOOK_MACROENABLED) != null
-				|| getPartNameOverridenByContentType(ContentTypes.SPREADSHEETML_TEMPLATE) != null
-				|| getPartNameOverridenByContentType(ContentTypes.SPREADSHEETML_TEMPLATE_MACROENABLED) != null) {
+		} else if (pkgContentType.equals(ContentTypes.SPREADSHEETML_WORKBOOK) 
+				|| pkgContentType.equals(ContentTypes.SPREADSHEETML_WORKBOOK_MACROENABLED) 
+				|| pkgContentType.equals(ContentTypes.SPREADSHEETML_TEMPLATE) 
+				|| pkgContentType.equals(ContentTypes.SPREADSHEETML_TEMPLATE_MACROENABLED) ) {
 			//  "xlam", "xlsb" ?
 			log.info("Detected SpreadhseetMLPackage package ");
 			p = new SpreadsheetMLPackage(this);
 			return p;			
-		} else if (getPartNameOverridenByContentType(ContentTypes.DRAWINGML_DIAGRAM_LAYOUT) != null) {
+		} else if (pkgContentType.equals(ContentTypes.DRAWINGML_DIAGRAM_LAYOUT) ) {
 			log.info("Detected Glox file ");
 			p = new GloxPackage(this);
 			return p;						
-		} else {
-			throw new InvalidFormatException("Unexpected package (docx4j supports docx/docxm and pptx only");
-//			log.warn("No part in [Content_Types].xml for content type"
-//					+ ContentTypes.WORDPROCESSINGML_DOCUMENT);
-//			// TODO - what content type in this case?
-//			return new Package(this);
-		}
+		} 
+				
+		// Nothing in overrides or defaults
+		throw new InvalidFormatException("Couldn't identify package from " + pkgContentType);
 	}
 
 	/*

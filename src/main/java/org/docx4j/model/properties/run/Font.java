@@ -19,18 +19,27 @@
  */
 package org.docx4j.model.properties.run;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.docx4j.XmlUtils;
+import org.docx4j.dml.CTTextCharacterProperties;
 import org.docx4j.fonts.Mapper;
 import org.docx4j.fonts.PhysicalFont;
+import org.docx4j.jaxb.Context;
+import org.docx4j.model.properties.Property;
 import org.docx4j.openpackaging.packages.OpcPackage;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
 import org.docx4j.wml.RFonts;
 import org.docx4j.wml.RPr;
 import org.docx4j.wml.STHint;
+import org.docx4j.wml.STTheme;
 import org.w3c.dom.Element;
+import org.w3c.dom.css.CSSPrimitiveValue;
 import org.w3c.dom.css.CSSValue;
 
 public class Font extends AbstractRunProperty {
+	
+	protected static Logger log = LoggerFactory.getLogger(Font.class);		
 
 	public final static String CSS_NAME = "font-family"; 
 	public final static String FO_NAME  = "font-family"; 
@@ -49,9 +58,22 @@ public class Font extends AbstractRunProperty {
 	}
 
 	public Font(CSSValue value) {
-		
+
+		CSSPrimitiveValue cssPrimitiveValue = (CSSPrimitiveValue)value;
+	    String[] fonts = cssPrimitiveValue.getStringValue().split(",");
+	    //try first font
+	    if(fonts.length > 0){
+	        if(!fonts[0].isEmpty()){
+	        	
+	        	log.debug("TODO: map " + fonts[0] + " to a usable font.");
+//	    	    RFonts rFonts = Context.getWmlObjectFactory().createRFonts();
+//	    	    rFonts.setAscii(fonts[0]);
+//	            rFonts.setHAnsi(fonts[0]);
+//	            this.setObject(rFonts);
+	        }
+	    }
 		debug(CSS_NAME, value);
-		log.warn("TODO");
+//		log.warn("RFonts from CSS font-family is a TODO");
 	}
 	
 
@@ -73,6 +95,8 @@ public class Font extends AbstractRunProperty {
 		
 		RFonts rFonts = (RFonts)this.getObject();
 		
+		log.debug("Processing " + XmlUtils.marshaltoString(rFonts, true));
+		
 		String font=null;
 		if (rFonts.getHint()!=null && rFonts.getHint().equals(STHint.EAST_ASIA) ) {
 			
@@ -93,18 +117,27 @@ public class Font extends AbstractRunProperty {
 
 			font = rFonts.getAscii();		
 			
-			if (font==null && wmlPackage instanceof WordprocessingMLPackage) {
-				font=((WordprocessingMLPackage)wmlPackage).getDefaultFont();
+			if (font==null 
+					&& wmlPackage instanceof WordprocessingMLPackage) {
+				// So, use the theme				
+				if (rFonts.getAsciiTheme()!=null
+						&& (rFonts.getAsciiTheme().equals(STTheme.MAJOR_ASCII)
+								|| rFonts.getAsciiTheme().equals(STTheme.MAJOR_H_ANSI) )) {
+					font=((WordprocessingMLPackage)wmlPackage).getDefaultMajorFont();					
+				} else {
+					font=((WordprocessingMLPackage)wmlPackage).getDefaultFont();
+				}
 			}
 			
 		}
-		
 		
 		return getPhysicalFont(wmlPackage, font);
 		
 	}
 
 	public static String getPhysicalFont(OpcPackage wmlPackage, String fontName) {
+		
+		log.debug("looking for: " + fontName);
 
 		if (!(wmlPackage instanceof WordprocessingMLPackage)) {
 			log.error("Implement me for pptx4j");
@@ -136,6 +169,11 @@ public class Font extends AbstractRunProperty {
 	public void set(RPr rPr) {
 		rPr.setRFonts((RFonts)this.getObject());
 	}
+
+    @Override
+    public void set(CTTextCharacterProperties rPr) {
+        //TODO
+    }
 	
 	
 }

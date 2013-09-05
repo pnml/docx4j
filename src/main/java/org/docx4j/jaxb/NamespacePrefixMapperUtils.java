@@ -4,11 +4,12 @@ import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
 import javax.xml.bind.Marshaller;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class NamespacePrefixMapperUtils {
 	
-	private static Logger log = Logger.getLogger(NamespacePrefixMapperUtils.class);		
+	private static Logger log = LoggerFactory.getLogger(NamespacePrefixMapperUtils.class);		
 	
 	/*
 	 * As from 2010 08 26,  
@@ -110,10 +111,10 @@ public class NamespacePrefixMapperUtils {
 			return prefixMapperRels;
 		} catch (java.lang.NoClassDefFoundError notJava6) {
 			// javax.xml.bind.PropertyException
-			log.error(notJava6.getMessage() + " .. trying RI.");
+			log.warn(notJava6.getMessage() + " .. trying RI.");
 			return tryRIforRelationshipsPart(m);
 		} catch (javax.xml.bind.PropertyException notJava6) {
-			log.error(notJava6.getMessage() + " .. trying RI.");
+			log.warn(notJava6.getMessage() + " .. trying RI.");
 			return tryRIforRelationshipsPart(m);
 		}
 	}
@@ -173,11 +174,10 @@ public class NamespacePrefixMapperUtils {
 //				System.out.println("setProperty: com.sun.xml.INTERNAL.bind.namespacePrefixMapper");
 			}
 			
-		} catch (javax.xml.bind.PropertyException cnfe) {
+		} catch (javax.xml.bind.PropertyException e) {
 			
-//			cnfe.printStackTrace();
-			log.error(cnfe);
-			throw cnfe;
+			log.error(e.getMessage(), e);
+			throw e;
 			
 		}
 		

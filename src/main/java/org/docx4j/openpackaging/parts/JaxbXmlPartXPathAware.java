@@ -20,10 +20,6 @@
 package org.docx4j.openpackaging.parts;
 
 import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.nio.ByteBuffer;
 import java.util.List;
 
 import javax.xml.bind.Binder;
@@ -34,33 +30,26 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.transform.Templates;
 import javax.xml.transform.dom.DOMResult;
 
-import org.apache.log4j.Logger;
-import org.docx4j.TraversalUtil;
+import org.apache.commons.io.IOUtils;
 import org.docx4j.XmlUtils;
-import org.docx4j.convert.in.xhtml.XHTMLImporter;
-import org.docx4j.jaxb.Context;
+import org.docx4j.jaxb.JAXBAssociation;
 import org.docx4j.jaxb.JaxbValidationEventHandler;
+import org.docx4j.jaxb.XPathBinderAssociationIsPartialException;
 import org.docx4j.openpackaging.exceptions.Docx4JException;
 import org.docx4j.openpackaging.exceptions.InvalidFormatException;
-import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
-import org.docx4j.openpackaging.parts.WordprocessingML.AltChunkInterface;
-import org.docx4j.openpackaging.parts.WordprocessingML.AltChunkType;
-import org.docx4j.openpackaging.parts.WordprocessingML.AlternativeFormatInputPart;
-import org.docx4j.openpackaging.parts.relationships.RelationshipsPart.AddPartBehaviour;
-import org.docx4j.relationships.Relationship;
-import org.docx4j.utils.AltChunkFinder;
-import org.docx4j.utils.AltChunkFinder.LocatedChunk;
-import org.docx4j.wml.CTAltChunk;
-import org.docx4j.wml.ContentAccessor;
+import org.docx4j.openpackaging.io3.stores.PartStore;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.w3c.dom.Node;
 
 /**
  * @author jharrop
  * @since 2.8
  */
-public abstract class JaxbXmlPartXPathAware<E> extends JaxbXmlPart<E> implements AltChunkInterface {
+public abstract class JaxbXmlPartXPathAware<E> extends JaxbXmlPart<E> 
+implements XPathEnabled<E> {
 	
-	protected static Logger log = Logger.getLogger(JaxbXmlPartXPathAware.class);
+	protected static Logger log = LoggerFactory.getLogger(JaxbXmlPartXPathAware.class);
 
 	public JaxbXmlPartXPathAware(PartName partName)
 			throws InvalidFormatException {
@@ -68,7 +57,7 @@ public abstract class JaxbXmlPartXPathAware<E> extends JaxbXmlPart<E> implements
 		// TODO Auto-generated constructor stub
 	}
 
-	private Binder<Node> binder;
+	protected Binder<Node> binder;
 	
 	/**
 	 * Enables synchronization between XML infoset nodes and JAXB objects 
@@ -90,7 +79,81 @@ public abstract class JaxbXmlPartXPathAware<E> extends JaxbXmlPart<E> implements
 	 */
 	public Binder<Node> getBinder() {
 		
+		if (jaxbElement == null) {
+			// Test jaxbElement, since we don't want to do the
+			// below if jaxbElement has already been set
+			// using setJaxbElement (which doesn't create 
+			// binder)
+			PartStore partStore = this.getPackage().getPartStore();
+			
+			InputStream is = null;
+			try {
+				String name = this.partName.getName();
+				
+				try {
+					this.setContentLengthAsLoaded(
+							partStore.getPartSize( name.substring(1)));
+				} catch (UnsupportedOperationException uoe) {}
+				
+				is = partStore.loadPart( 
+						name.substring(1));
+				if (is==null) {
+					log.warn(name + " missing from part store");
+				} else {
+					log.info("Lazily unmarshalling " + name);
+					unmarshal( is );
+				}
+			} catch (JAXBException e) {
+				log.error(e.getMessage(), e);
+			} catch (Docx4JException e) {
+				log.error(e.getMessage(), e);
+			} finally {
+				IOUtils.closeQuietly(is);
+			}		
+		} else if (binder==null) {
+			// User might have set jaxb element, without creating a binder	
+			try {
+				log.debug("creating binder for " + this.getJaxbElement().getClass().getName());
+				org.w3c.dom.Document doc =  XmlUtils.neww3cDomDocument();
+				this.marshal(doc);
+				unmarshal( doc.getDocumentElement() );
+			} catch (JAXBException e) {
+				log.error(e.getMessage(), e);
+			} 
+		}
+		
 		return binder;
+	}
+
+	/* Don't override setJaxbElement(E jaxbElement) to create	  	
+	 * binder here, since that would set the
+	 * jaxbElement field to something different to
+	 * the object being passed in, leading to
+	 * calling code doing something different to what it thinks it 
+	 * is doing! (ie backwards compatibility would be broken).
+	 * 
+	 * That's why we have this new method createBinderAndJaxbElement
+	 */
+	
+	/**
+	 * Set the JAXBElement for this part, and a corresponding
+	 * binder, based on the object provided.  Returns the new
+	 * JAXBElement, so calling code can manipulate it.  Beware
+	 * that this object is different to the one passed in!
+	 * @param source
+	 * @return
+	 * @throws JAXBException
+	 * @since 3.0.0
+	 */
+	public E createBinderAndJaxbElement(E source) throws JAXBException {
+		
+		// In order to create binder:-
+		log.info("creating binder");
+		org.w3c.dom.Document doc = XmlUtils.marshaltoW3CDomDocument(jaxbElement);
+		unmarshal(doc.getDocumentElement());
+		// return the newly created object, so calling code can use it in place
+		// of their source object
+		return jaxbElement;
 	}
 	
 	/**
@@ -107,11 +170,14 @@ public abstract class JaxbXmlPartXPathAware<E> extends JaxbXmlPart<E> implements
 	 * @param refreshXmlFirst
 	 * @return
 	 * @throws JAXBException
+	 * @throws XPathBinderAssociationIsPartialException 
 	 */	
 	public List<Object> getJAXBNodesViaXPath(String xpathExpr, boolean refreshXmlFirst) 
-			throws JAXBException {
+			throws JAXBException, XPathBinderAssociationIsPartialException {
 		
-		return XmlUtils.getJAXBNodesViaXPath(binder, getJaxbElement(), xpathExpr, refreshXmlFirst);
+		Binder<Node> binder = getBinder();
+		E el = getJaxbElement();
+		return XmlUtils.getJAXBNodesViaXPath(binder, el, xpathExpr, refreshXmlFirst);
 	}	
 
 	/**
@@ -130,13 +196,81 @@ public abstract class JaxbXmlPartXPathAware<E> extends JaxbXmlPart<E> implements
 	 * @param refreshXmlFirst
 	 * @return
 	 * @throws JAXBException
+	 * @throws XPathBinderAssociationIsPartialException 
 	 */
 	public List<Object> getJAXBNodesViaXPath(String xpathExpr, Object someJaxbElement, boolean refreshXmlFirst) 
-		throws JAXBException {
+		throws JAXBException, XPathBinderAssociationIsPartialException {
 
-		return XmlUtils.getJAXBNodesViaXPath(binder, someJaxbElement, xpathExpr, refreshXmlFirst);
+		return XmlUtils.getJAXBNodesViaXPath(getBinder(), someJaxbElement, xpathExpr, refreshXmlFirst);
+	}	
+
+	/**
+	 * Fetch DOM node / JAXB object pairs matching an XPath (for example "//w:p").
+	 * 
+	 * In JAXB, this association is partial; not all XML elements have associated JAXB objects, 
+	 * and not all JAXB objects have associated XML elements.  
+	 * 
+	 * If the XPath returns an element which isn't associated
+	 * with a JAXB object, the element's pair will be null.
+	 * 
+	 * If you have modified your JAXB objects (eg added or changed a 
+	 * w:p paragraph), you need to update the association. The problem
+	 * is that this can only be done ONCE, owing to a bug in JAXB:
+	 * see https://jaxb.dev.java.net/issues/show_bug.cgi?id=459
+	 * 
+	 * So this is left for you to choose to do via the refreshXmlFirst parameter.   
+	 * 
+	 * @param binder
+	 * @param jaxbElement
+	 * @param xpathExpr
+	 * @param refreshXmlFirst
+	 * @return
+	 * @throws JAXBException
+	 * @throws XPathBinderAssociationIsPartialException
+	 * @since 3.0.0
+	 */
+	public List<JAXBAssociation> getJAXBAssociationsForXPath(
+			String xpathExpr, boolean refreshXmlFirst) 
+			throws JAXBException, XPathBinderAssociationIsPartialException {
+
+		E el = getJaxbElement();
+		return XmlUtils.getJAXBAssociationsForXPath(getBinder(), el, xpathExpr, refreshXmlFirst);
+		
 	}	
 	
+	/**
+	 * Fetch DOM node / JAXB object pairs matching an XPath (for example ".//w:p" - note the dot,
+	 * which is necessary for this sort of relative path).
+	 * 
+	 * In JAXB, this association is partial; not all XML elements have associated JAXB objects, 
+	 * and not all JAXB objects have associated XML elements.  
+	 * 
+	 * If the XPath returns an element which isn't associated
+	 * with a JAXB object, the element's pair will be null.
+	 * 
+	 * If you have modified your JAXB objects (eg added or changed a 
+	 * w:p paragraph), you need to update the association. The problem
+	 * is that this can only be done ONCE, owing to a bug in JAXB:
+	 * see https://jaxb.dev.java.net/issues/show_bug.cgi?id=459
+	 * 
+	 * So this is left for you to choose to do via the refreshXmlFirst parameter.   
+	 * 
+	 * @param binder
+	 * @param jaxbElement
+	 * @param xpathExpr
+	 * @param refreshXmlFirst
+	 * @return
+	 * @throws JAXBException
+	 * @throws XPathBinderAssociationIsPartialException
+	 * @since 3.0.0
+	 */
+	public List<JAXBAssociation> getJAXBAssociationsForXPath(
+			Object someJaxbElement, String xpathExpr, boolean refreshXmlFirst) 
+			throws JAXBException, XPathBinderAssociationIsPartialException {
+
+		return XmlUtils.getJAXBAssociationsForXPath(getBinder(), someJaxbElement, xpathExpr, refreshXmlFirst);
+		
+	}	
 	
     /**
      * Unmarshal XML data from the specified InputStream and return the 
@@ -166,7 +300,7 @@ public abstract class JaxbXmlPartXPathAware<E> extends JaxbXmlPart<E> implements
 			// 
 			binder = jc.createBinder();
 			
-			log.debug("binder: " + binder.getClass().getName());
+			log.debug("info: " + binder.getClass().getName());
 			
 			JaxbValidationEventHandler eventHandler = new JaxbValidationEventHandler();
 			eventHandler.setContinue(false);
@@ -245,7 +379,7 @@ public abstract class JaxbXmlPartXPathAware<E> extends JaxbXmlPart<E> implements
 						
 					}
 				} else {
-					log.error(ue);
+					log.error(ue.getMessage(), ue);
 					log.error(".. and mark not supported");
 					throw ue;
 				}
@@ -266,6 +400,7 @@ public abstract class JaxbXmlPartXPathAware<E> extends JaxbXmlPart<E> implements
     public E unmarshal(org.w3c.dom.Element el) throws JAXBException {
 
 		try {
+			log.info("For " + this.getClass().getName() + ", unmarshall via binder");
 
 			binder = jc.createBinder();
 			JaxbValidationEventHandler eventHandler = new JaxbValidationEventHandler();
@@ -304,280 +439,18 @@ public abstract class JaxbXmlPartXPathAware<E> extends JaxbXmlPart<E> implements
 			return jaxbElement;
 			
 		} catch (JAXBException e) {
-			log.error(e);
+			log.error(e.getMessage(), e);
 			throw e;
 		}
 	}
 
-	/* (non-Javadoc)
-	 * @see org.docx4j.openpackaging.parts.WordprocessingML.AltChunkInterface#addAltChunkOfTypeHTML(byte[])
-	 */
-	@Override
-	public AlternativeFormatInputPart addAltChunk(AltChunkType type, byte[] bytes)  throws Docx4JException {
-		
-		AlternativeFormatInputPart afiPart = new AlternativeFormatInputPart(type); 
-		Relationship altChunkRel = this.addTargetPart(afiPart, AddPartBehaviour.RENAME_IF_NAME_EXISTS); 
-		// now that its attached to the package ..
-		afiPart.registerInContentTypeManager();
-		
-		afiPart.setBinaryData(bytes); 		
-		
-		// .. the bit in document body 
-		CTAltChunk ac = Context.getWmlObjectFactory().createCTAltChunk(); 
-		ac.setId(altChunkRel.getId() ); 
-		if (this instanceof ContentAccessor) {
-		 ((ContentAccessor)this).getContent().add(ac); 
-		} else {
-			throw new Docx4JException(this.getClass().getName() + " doesn't implement ContentAccessor");
-		}
-		
-		return afiPart;
-	}
-
-	/* (non-Javadoc)
-	 * @see org.docx4j.openpackaging.parts.WordprocessingML.AltChunkInterface#addAltChunkOfTypeHTML(java.io.InputStream)
-	 */
-	@Override
-	public AlternativeFormatInputPart addAltChunk(AltChunkType type, InputStream is)   throws Docx4JException {
-		
-		AlternativeFormatInputPart afiPart = new AlternativeFormatInputPart(type); 
-		Relationship altChunkRel = this.addTargetPart(afiPart, AddPartBehaviour.RENAME_IF_NAME_EXISTS); 
-		// now that its attached to the package ..
-		afiPart.registerInContentTypeManager();		
-		
-		afiPart.setBinaryData(is); 
-		
-		// .. the bit in document body 
-		CTAltChunk ac = Context.getWmlObjectFactory().createCTAltChunk(); 
-		ac.setId(altChunkRel.getId() ); 
-		if (this instanceof ContentAccessor) {
-		 ((ContentAccessor)this).getContent().add(ac); 
-		} else {
-			throw new Docx4JException(this.getClass().getName() + " doesn't implement ContentAccessor");
-		}
-		
-		return afiPart;
-	}
-
-	/* (non-Javadoc)
-	 * @see org.docx4j.openpackaging.parts.WordprocessingML.AltChunkInterface#addAltChunkOfTypeHTML(byte[], org.docx4j.wml.ContentAccessor)
-	 */
-	@Override
-	public AlternativeFormatInputPart addAltChunk(AltChunkType type, byte[] bytes,
-			ContentAccessor attachmentPoint)   throws Docx4JException {
-		
-		AlternativeFormatInputPart afiPart = new AlternativeFormatInputPart(type); 
-		Relationship altChunkRel = this.addTargetPart(afiPart, AddPartBehaviour.RENAME_IF_NAME_EXISTS); 
-		// now that its attached to the package ..
-		afiPart.registerInContentTypeManager();
-		
-		afiPart.setBinaryData(bytes); 		
-		
-		// .. the bit in document body 
-		CTAltChunk ac = Context.getWmlObjectFactory().createCTAltChunk(); 
-		ac.setId(altChunkRel.getId() ); 
-		attachmentPoint.getContent().add(ac);
-					
-		return afiPart;
-	}
-
-	/* (non-Javadoc)
-	 * @see org.docx4j.openpackaging.parts.WordprocessingML.AltChunkInterface#addAltChunkOfTypeHTML(java.io.InputStream, org.docx4j.wml.ContentAccessor)
-	 */
-	@Override
-	public AlternativeFormatInputPart addAltChunk(AltChunkType type, InputStream is,
-			ContentAccessor attachmentPoint) throws Docx4JException {
-		
-		AlternativeFormatInputPart afiPart = new AlternativeFormatInputPart(type); 
-		Relationship altChunkRel = this.addTargetPart(afiPart, AddPartBehaviour.RENAME_IF_NAME_EXISTS); 
-		// now that its attached to the package ..
-		afiPart.registerInContentTypeManager();		
-		
-		afiPart.setBinaryData(is); 
-		
-		// .. the bit in document body 
-		CTAltChunk ac = Context.getWmlObjectFactory().createCTAltChunk(); 
-		ac.setId(altChunkRel.getId() ); 
-		attachmentPoint.getContent().add(ac);
-					
-		return afiPart;
-	}
-
-	/* (non-Javadoc)
-	 * @see org.docx4j.openpackaging.parts.WordprocessingML.AltChunkInterface#processAltChunksOfTypeHTML()
-	 */
-	@Override
-	public WordprocessingMLPackage convertAltChunks() throws Docx4JException {
-		
-		// TODO: Currently only processes AltChunks in main document part.
-
-		if (!(this instanceof ContentAccessor)) {
-				throw new Docx4JException(this.getClass().getName() + " doesn't implement ContentAccessor");
-		}	
-		PartName partName = this.getPartName();
-				
-		WordprocessingMLPackage clonePkg = (WordprocessingMLPackage)this.getPackage().clone(); // consistent with MergeDocx approach
-		JaxbXmlPartXPathAware clonedPart = (JaxbXmlPartXPathAware)clonePkg.getParts().get(partName); 
-				
-		List<Object> contentList = ((ContentAccessor)clonedPart).getContent();
-		
-	    AltChunkFinder bf = new AltChunkFinder();
-		new TraversalUtil(contentList, bf);
-
-		CTAltChunk altChunk;
-		boolean encounteredDocxAltChunk = false;
-		for (LocatedChunk locatedChunk : bf.getAltChunks()) {
-			
-			altChunk = locatedChunk.getAltChunk();
-			AlternativeFormatInputPart afip 
-				=  (AlternativeFormatInputPart)clonedPart.getRelationshipsPart().getPart(
-						altChunk.getId() );
-			
-			// Can we process it?
-			AltChunkType type = afip.getAltChunkType();
-
-			if (type.equals(AltChunkType.Xhtml) ) {
-				
-	            List<Object> results = null;
-				try {
-					results = XHTMLImporter.convert(toString(afip.getBuffer()), 
-							null, clonePkg);
-				} catch (UnsupportedEncodingException e) {
-					log.error(e.getMessage(), e);
-					// Skip this one
-					continue;
-				}
-				
-				int index = locatedChunk.getIndex(); 
-				locatedChunk.getContentList().remove(index); // handles case where it is nested eg in a tc
-				locatedChunk.getContentList().addAll(index, results);	
-				
-				log.info("Converted altChunk of type XHTML ");
-				
-			} else if (type.equals(AltChunkType.Mht) ) {
-				log.warn("Skipping altChunk of type MHT ");
-				continue;
-			} else if (type.equals(AltChunkType.Xml) ) {
-				log.warn("Skipping altChunk of type XML "); // what does Word do??
-				continue;
-			} else if (type.equals(AltChunkType.TextPlain) ) {
-				
-				String result= null;
-				try {
-					result = toString(afip.getBuffer());
-				} catch (UnsupportedEncodingException e) {
-					log.error(e.getMessage(), e);
-					// Skip this one
-					continue;
-				}
-				
-				if (result!=null) {
-					int index = locatedChunk.getIndex();
-					locatedChunk.getContentList().remove(index); // handles case where it is nested eg in a tc
-					
-					org.docx4j.wml.ObjectFactory factory = Context.getWmlObjectFactory();
-					org.docx4j.wml.P  para = factory.createP();
-					locatedChunk.getContentList().add(index, para);	
-				
-					org.docx4j.wml.R  run = factory.createR();
-					para.getContent().add(run);
-
-					org.docx4j.wml.Text  t = factory.createText();
-					t.setValue(result);
-					run.getContent().add(t);		
-					
-					
-					log.info("Converted altChunk of type text ");
-				}
-
-			} else if (type.equals(AltChunkType.WordprocessingML)
-					 || type.equals(AltChunkType.OfficeWordMacroEnabled)
-					 || type.equals(AltChunkType.OfficeWordTemplate)
-					 ||type.equals(AltChunkType.OfficeWordMacroEnabledTemplate) ) {
-				encounteredDocxAltChunk = true;
-				continue;
-				
-			} else if (type.equals(AltChunkType.Rtf) ) {
-				log.warn("Skipping altChunk of type RTF ");
-				continue;
-			} else if (type.equals(AltChunkType.Html) ) {
-				log.warn("Skipping altChunk of type HTML ");
-				continue;
-				// if there was a pretty printer on class path,
-				// could use it via reflection?
-			}
-						
-		}
-		
-		if (encounteredDocxAltChunk) {
-			
-			// Docx AltChunks are handled by MergeDocx, if available
-			try {
-				// Use reflection, so docx4j can be built
-				// by users who don't have the MergeDocx utility
-				Class<?> documentBuilder = Class.forName("com.plutext.merge.ProcessAltChunk");			
-				//Method method = documentBuilder.getMethod("merge", wmlPkgList.getClass());			
-				Method[] methods = documentBuilder.getMethods(); 
-				Method method = null;
-				for (int j=0; j<methods.length; j++) {
-					System.out.println(methods[j].getName());
-					if (methods[j].getName().equals("process")) {
-						method = methods[j];
-						break;
-					}
-				}			
-				if (method==null) {
-					// User doesn't have MergeDocx
-					throw new NoSuchMethodException();
-				}
-				
-				// User has MergeDocx
-				return (WordprocessingMLPackage)method.invoke(null, clonePkg);
-				
-			} catch (SecurityException e) {
-				e.printStackTrace();
-				log.warn("* Skipping altChunk of type docx ");
-				return clonePkg;
-			} catch (ClassNotFoundException e) {
-				extensionMissing(e);
-				return clonePkg;
-			} catch (IllegalArgumentException e) {
-				e.printStackTrace();
-				log.warn("* Skipping altChunk of type docx ");
-				return clonePkg;
-			} catch (NoSuchMethodException e) {
-				extensionMissing(e);
-				return clonePkg;
-			} catch (IllegalAccessException e) {
-				e.printStackTrace();
-				log.warn("* Skipping altChunk of type docx ");
-				return clonePkg;
-			} catch (InvocationTargetException e) {
-				e.printStackTrace();
-				log.warn("* Skipping altChunk of type docx ");
-				return clonePkg;
-			} 
-			
-		} else {
-			return clonePkg;
-		}
-	}
 	
-	private void extensionMissing(Exception e) {
-		log.warn("\n" + e.getClass().getName() + ": " + e.getMessage() + "\n");
-		log.warn("* Skipping altChunk of type docx ");
-		log.warn("* You don't appear to have the MergeDocx paid extension,");
-		log.warn("* which is necessary to merge docx, or process altChunk.");
-		log.warn("* Purchases of this extension support the docx4j project.");
-		log.warn("* Please email sales@plutext.com or visit www.plutext.com if you want to buy it.");
-	}
-	
-	private String toString(ByteBuffer bb) throws UnsupportedEncodingException {
-
-		byte[] bytes = null;
-        bytes = new byte[bb.limit()];
-        bb.get(bytes);	        				
-		return new String(bytes, "UTF-8");
-	}
+//	private String toString(ByteBuffer bb) throws UnsupportedEncodingException {
+//
+//		byte[] bytes = null;
+//        bytes = new byte[bb.limit()];
+//        bb.get(bytes);	        				
+//		return new String(bytes, "UTF-8");
+//	}
 	
 }

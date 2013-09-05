@@ -1,5 +1,5 @@
 /*
- *  Copyright 2007-2008, Plutext Pty Ltd.
+ *  Copyright 2007-2013, Plutext Pty Ltd.
  *   
  *  This file is part of docx4j.
 
@@ -19,7 +19,9 @@
  */
 
 
-package org.docx4j.wml;
+package org.docx4j.wml; 
+
+import org.jvnet.jaxb2_commons.ppp.Child;
 
 import javax.xml.bind.Unmarshaller;
 import javax.xml.bind.annotation.XmlAccessType;
@@ -31,7 +33,6 @@ import javax.xml.bind.annotation.XmlType;
 import javax.xml.bind.annotation.XmlValue;
 import javax.xml.bind.annotation.adapters.CollapsedStringAdapter;
 import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
-import org.jvnet.jaxb2_commons.ppp.Child;
 
 
 /**
@@ -61,7 +62,7 @@ public class DelText implements Child
 
     @XmlValue
     protected String value;
-    @XmlAttribute(namespace = "http://www.w3.org/XML/1998/namespace")
+    @XmlAttribute(name = "space", namespace = "http://www.w3.org/XML/1998/namespace")
     @XmlJavaTypeAdapter(CollapsedStringAdapter.class)
     protected String space;
     @XmlTransient

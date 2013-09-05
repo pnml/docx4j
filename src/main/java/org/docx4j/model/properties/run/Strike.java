@@ -19,13 +19,20 @@
  */
 package org.docx4j.model.properties.run;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.docx4j.dml.CTTextCharacterProperties;
+import org.docx4j.dml.STTextStrikeType;
 import org.docx4j.jaxb.Context;
+import org.docx4j.model.properties.Property;
 import org.docx4j.wml.BooleanDefaultTrue;
 import org.docx4j.wml.RPr;
 import org.w3c.dom.Element;
 import org.w3c.dom.css.CSSValue;
 
 public class Strike extends AbstractRunProperty {
+	
+	protected static Logger log = LoggerFactory.getLogger(Strike.class);		
 
 	public final static String CSS_NAME = "text-decoration"; 
 	public final static String FO_NAME  = "text-decoration"; 
@@ -42,14 +49,12 @@ public class Strike extends AbstractRunProperty {
 	}
 	
 	public Strike(CSSValue value) {
-		
-		if (value.getCssText().toLowerCase().equals("line-through")) {
-			this.setObject( Context.getWmlObjectFactory().createBooleanDefaultTrue()  );
-		} else {
-			BooleanDefaultTrue bdt = Context.getWmlObjectFactory().createBooleanDefaultTrue();
+        BooleanDefaultTrue bdt = Context.getWmlObjectFactory().createBooleanDefaultTrue();
+        if (!(value.getCssText().toLowerCase().equals("line-through")
+                || value.getCssText().toLowerCase().equals("[line-through]"))) {
 			bdt.setVal(Boolean.FALSE);
 		}
-
+        this.setObject( bdt  );
 	}
 
 	@Override
@@ -77,5 +82,14 @@ public class Strike extends AbstractRunProperty {
 	public void set(RPr rPr) {
 		rPr.setStrike( (BooleanDefaultTrue)this.getObject() );
 	}
+
+    @Override
+    public void set(CTTextCharacterProperties rPr) {
+        if(((BooleanDefaultTrue)this.getObject()).isVal()) {
+            rPr.setStrike(STTextStrikeType.SNG_STRIKE);
+        } else {
+            rPr.setStrike(STTextStrikeType.NO_STRIKE);
+        }
+    }
 	
 }

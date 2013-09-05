@@ -23,12 +23,14 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.Unmarshaller;
 
 import org.apache.commons.lang.StringUtils;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.docx4j.fonts.microsoft.MicrosoftFonts;
 import org.docx4j.fonts.substitutions.FontSubstitutions;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
@@ -59,7 +61,7 @@ public class BestMatchingMapper extends Mapper {
 	
 	
 	
-	protected static Logger log = Logger.getLogger(BestMatchingMapper.class);
+	protected static Logger log = LoggerFactory.getLogger(BestMatchingMapper.class);
 
 	public BestMatchingMapper() {
 		super();
@@ -211,7 +213,7 @@ public class BestMatchingMapper extends Mapper {
 	 * @param wmlFonts - the content model for the fonts part
 	 * @throws Exception
 	 */
-	public void populateFontMappings(Map documentFontNames, org.docx4j.wml.Fonts wmlFonts ) throws Exception {
+	public void populateFontMappings(Set<String> documentFontNames, org.docx4j.wml.Fonts wmlFonts ) throws Exception {
 				
 		/* org.docx4j.wml.Fonts fonts is obtained as follows:
 		 * 
@@ -235,19 +237,9 @@ public class BestMatchingMapper extends Mapper {
 		log.info("\n\n Populating font mappings.");
 		
 		// Go through the font names, and determine which ones we can render!		
-		Iterator documentFontIterator = documentFontNames.entrySet().iterator();
-	    while (documentFontIterator.hasNext()) {
-	    	
+		for (String documentFontName : documentFontNames) {
+			
 	    	PhysicalFont fontMatched = null;
-	    	
-	        Map.Entry pairs = (Map.Entry)documentFontIterator.next();
-	        
-	        if(pairs.getKey()==null) {
-	        	log.info("Skipped null key");
-	        	pairs = (Map.Entry)documentFontIterator.next();
-	        }
-	        
-	        String documentFontName = (String)pairs.getKey();
 
 			log.debug("\n\n" + documentFontName);
 	        	        

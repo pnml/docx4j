@@ -33,7 +33,8 @@ import org.docx4j.openpackaging.packages.OpcPackage;
 import org.docx4j.openpackaging.parts.relationships.RelationshipsPart;
 import org.docx4j.relationships.Relationship;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -55,7 +56,7 @@ public abstract class Part extends Base {
 	/**
 	 * Logger.
 	 */
-	protected static Logger log = Logger.getLogger(Part.class);
+	protected static Logger log = LoggerFactory.getLogger(Part.class);
 
 	
 	protected OpcPackage pack;
@@ -66,6 +67,7 @@ public abstract class Part extends Base {
      * @since 2.7.1
      */
 	public List<Relationship> getSourceRelationships() {
+		// TODO: use this exclusively, instead of relationshipType
 		return sourceRelationships;
 	}
 	
@@ -99,8 +101,13 @@ public abstract class Part extends Base {
 			// there is little point in also have relationshipType,
 			// except for a part which isn't yet connected to
 			// a package via a relationship.
-			return this.sourceRelationships.get(0).getType();
-			// It ought to be the same in each source rel
+			if (this.sourceRelationships.size()==0) {
+				log.warn(this.partName.getName() + " has no source rel set");
+				return null;
+			} else {
+				// It ought to be the same in each source rel
+				return this.sourceRelationships.get(0).getType();
+			}
 		} else {
 			return relationshipType;
 		}
@@ -131,6 +138,26 @@ public abstract class Part extends Base {
 		this.owningRelationshipPart = owningRelationshipPart;
 	}
 	
+	private long contentLengthAsLoaded = -1;
+	
+	/**
+	 * returns the size in bytes of this part as stored,
+	 * or -1 if unknown.
+	 * @return the contentLengthAsLoaded
+	 * @since 3.0.0
+	 */
+	public long getContentLengthAsLoaded() {
+		return contentLengthAsLoaded;
+	}
+
+	/**
+	 * @param contentLengthAsLoaded the contentLengthAsLoaded to set
+	 * @since 3.0.0
+	 */
+	protected void setContentLengthAsLoaded(long contentLengthAsLoaded) {
+		this.contentLengthAsLoaded = contentLengthAsLoaded;
+	}
+
 	public Part() {
 		
 	}

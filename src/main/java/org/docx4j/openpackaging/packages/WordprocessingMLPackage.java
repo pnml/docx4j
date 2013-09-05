@@ -24,6 +24,7 @@ package org.docx4j.openpackaging.packages;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.util.Map;
+import java.util.Set;
 
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.Marshaller;
@@ -32,7 +33,8 @@ import javax.xml.transform.Source;
 import javax.xml.transform.Templates;
 import javax.xml.transform.stream.StreamSource;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.docx4j.Docx4jProperties;
 import org.docx4j.XmlUtils;
 import org.docx4j.convert.out.flatOpcXml.FlatOpcXmlCreator;
@@ -50,6 +52,7 @@ import org.docx4j.openpackaging.contenttype.ContentTypes;
 import org.docx4j.openpackaging.exceptions.Docx4JException;
 import org.docx4j.openpackaging.exceptions.InvalidFormatException;
 import org.docx4j.openpackaging.io.SaveToZipFile;
+import org.docx4j.openpackaging.io3.stores.ZipPartStore;
 import org.docx4j.openpackaging.parts.DocPropsCorePart;
 import org.docx4j.openpackaging.parts.DocPropsCustomPart;
 import org.docx4j.openpackaging.parts.DocPropsExtendedPart;
@@ -97,7 +100,7 @@ public class WordprocessingMLPackage extends OpcPackage {
 	 * word/document.xml
 	 */
 	
-	protected static Logger log = Logger.getLogger(WordprocessingMLPackage.class);
+	protected static Logger log = LoggerFactory.getLogger(WordprocessingMLPackage.class);
 		
 	
 	// Main document
@@ -169,41 +172,6 @@ public class WordprocessingMLPackage extends OpcPackage {
 	public static WordprocessingMLPackage load(InputStream is) throws Docx4JException {
 		
 		return (WordprocessingMLPackage)OpcPackage.load(is);
-	}
-	
-	/**
-	 * Convenience method to save a WordprocessingMLPackage
-	 * to a File.
-     *
-	 * @param docxFile
-	 *            The docx file 
-	 */	
-	public void save(java.io.File docxFile) throws Docx4JException {
-
-		if (docxFile.getName().endsWith(".xml")) {
-			
-		   	// Create a org.docx4j.wml.Package object
-			FlatOpcXmlCreator worker = new FlatOpcXmlCreator(this);
-			org.docx4j.xmlPackage.Package pkg = worker.get();
-	    	
-	    	// Now marshall it
-			JAXBContext jc = Context.jcXmlPackage;
-			try {
-				Marshaller marshaller=jc.createMarshaller();
-				
-				marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, Boolean.TRUE);
-				NamespacePrefixMapperUtils.setProperty(marshaller, 
-						NamespacePrefixMapperUtils.getPrefixMapper());			
-				
-				marshaller.marshal(pkg, new FileOutputStream(docxFile));
-			} catch (Exception e) {
-				throw new Docx4JException("Error saving Flat OPC XML", e);
-			}	
-			return;
-		}
-			
-		SaveToZipFile saver = new SaveToZipFile(this); 
-		saver.save(docxFile);
 	}
 	
 	
@@ -340,7 +308,7 @@ public class WordprocessingMLPackage extends OpcPackage {
 		org.docx4j.wml.Fonts fonts = null;
 
 		// 1.  Get a list of all the fonts in the document
-		java.util.Map fontsInUse = this.getMainDocumentPart().fontsInUse();
+		Set<String> fontsInUse = this.getMainDocumentPart().fontsInUse();
 		
 		//if ( fm instanceof BestMatchingMapper ) {
 		if ( fm.getClass().getName().equals("org.docx4j.fonts.BestMatchingMapper") ) {
@@ -391,6 +359,15 @@ public class WordprocessingMLPackage extends OpcPackage {
 		return defaultFont;		
 	}
     	
+	private String defaultMajorFont;
+	public String getDefaultMajorFont() {
+		
+		if (defaultMajorFont==null) {
+			defaultMajorFont = mainDoc.getPropertyResolver().getDefaultMajorFontLatin();
+			log.debug("Identified default major font: " + defaultMajorFont);
+		}
+		return defaultMajorFont;		
+	}
 
 	/**
 	 * Creates a WordprocessingMLPackage, using default page size and orientation.
@@ -455,7 +432,7 @@ public class WordprocessingMLPackage extends OpcPackage {
 		} catch (Exception e) {
 			// TODO: handle exception
 			//e.printStackTrace();	
-			log.error(e);
+			log.error(e.getMessage(), e);
 		}
 		
 		// Metadata: docx4j 2.7.1 can populate some of this from docx4j.properties
@@ -469,7 +446,9 @@ public class WordprocessingMLPackage extends OpcPackage {
 		DocPropsExtendedPart app = new DocPropsExtendedPart();
 		org.docx4j.docProps.extended.ObjectFactory extFactory = new org.docx4j.docProps.extended.ObjectFactory();
 		app.setJaxbElement(extFactory.createProperties() );
-		wmlPack.addTargetPart(app);		
+		wmlPack.addTargetPart(app);	
+		
+		wmlPack.setPartStore(new ZipPartStore());
 		
 		// Return the new package
 		return wmlPack;

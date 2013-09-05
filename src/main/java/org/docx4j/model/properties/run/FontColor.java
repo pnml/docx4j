@@ -19,11 +19,13 @@
  */
 package org.docx4j.model.properties.run;
 
+import java.lang.reflect.Method;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.docx4j.UnitsOfMeasurement;
+import org.docx4j.dml.CTTextCharacterProperties;
 import org.docx4j.jaxb.Context;
-import org.docx4j.org.xhtmlrenderer.css.parser.FSColor;
-import org.docx4j.org.xhtmlrenderer.css.parser.FSRGBColor;
-import org.docx4j.org.xhtmlrenderer.css.parser.PropertyValue;
 import org.docx4j.wml.Color;
 import org.docx4j.wml.RPr;
 import org.w3c.dom.Element;
@@ -31,6 +33,8 @@ import org.w3c.dom.css.CSSPrimitiveValue;
 import org.w3c.dom.css.CSSValue;
 
 public class FontColor extends AbstractRunProperty {
+	
+	protected static Logger log = LoggerFactory.getLogger(FontColor.class);		
 
 	public final static String CSS_NAME = "color"; 
 	public final static String FO_NAME  = "color"; 
@@ -47,35 +51,40 @@ public class FontColor extends AbstractRunProperty {
 	}
 
 	public FontColor(CSSValue value) {
-		
+
 		// PrimitiveType 25 -> RGBCOLOR
 		short ignored = 1;
 
-    float fRed;
-    float fGreen;
-    float fBlue;
+		float fRed;
+		float fGreen;
+		float fBlue;
 
-		CSSPrimitiveValue cssPrimitiveValue = (CSSPrimitiveValue)value;
-    try {
-      fRed = cssPrimitiveValue.getRGBColorValue().getRed().getFloatValue(ignored);
-      fGreen = cssPrimitiveValue.getRGBColorValue().getGreen().getFloatValue(ignored);
-      fBlue = cssPrimitiveValue.getRGBColorValue().getBlue().getFloatValue(ignored);
-    } catch (UnsupportedOperationException e) {
-      if (!(cssPrimitiveValue instanceof PropertyValue)) throw e;
-      final FSColor fsColor = ((PropertyValue) cssPrimitiveValue).getFSColor();
-      if (!(fsColor instanceof FSRGBColor)) throw e;
-      fRed = ((FSRGBColor) fsColor).getRed();
-      fGreen = ((FSRGBColor) fsColor).getGreen();
-      fBlue = ((FSRGBColor) fsColor).getBlue();
-    }
-		
+		CSSPrimitiveValue cssPrimitiveValue = (CSSPrimitiveValue) value;
 		Color color = Context.getWmlObjectFactory().createColor();
-		color.setVal( UnitsOfMeasurement.rgbTripleToHex(fRed, fGreen, fBlue)  );
-		
-		this.setObject(color);
+		try {
+			fRed = cssPrimitiveValue.getRGBColorValue().getRed()
+					.getFloatValue(ignored);
+			fGreen = cssPrimitiveValue.getRGBColorValue().getGreen()
+					.getFloatValue(ignored);
+			fBlue = cssPrimitiveValue.getRGBColorValue().getBlue()
+					.getFloatValue(ignored);
+			color.setVal(UnitsOfMeasurement.rgbTripleToHex(fRed, fGreen, fBlue));
+			
+		} catch (UnsupportedOperationException e) {			
+        	
+		    try {
+		    	Class<?> xhtmlImporterClass = Class.forName("org.docx4j.convert.in.xhtml.FSColorToHexString");
+		        Method rgbToHexMethod = xhtmlImporterClass.getMethod("rgbToHex", CSSPrimitiveValue.class);
+		        color.setVal((String)rgbToHexMethod.invoke(null, cssPrimitiveValue));
+		    } catch (Exception e2) {
+		        log.error("docx4j-XHTMLImport jar not found. Please add this to your classpath.");
+				log.error(e2.getMessage(), e2);
+				throw e; // same as before
+			}  
+		}
 
-	}
-	
+		this.setObject(color);
+	}	
 	
 	@Override
 	public String getCssProperty() {
@@ -92,7 +101,12 @@ public class FontColor extends AbstractRunProperty {
 	public void setXslFO(Element foElement) {
 		
 		if (((Color)this.getObject()).getVal()!=null ) {
-			foElement.setAttribute(FO_NAME, "#" + ((Color)this.getObject()).getVal());
+			if (((Color)this.getObject()).getVal().equals("auto")) {
+				// set it to black
+				foElement.setAttribute(FO_NAME, "black");				
+			} else {
+				foElement.setAttribute(FO_NAME, "#" + ((Color)this.getObject()).getVal());
+			}
 		} else {
 			//
 		}
@@ -103,5 +117,10 @@ public class FontColor extends AbstractRunProperty {
 	public void set(RPr rPr) {
 		rPr.setColor((Color)this.getObject());
 	}
+
+    @Override
+    public void set(CTTextCharacterProperties rPr) {
+        //TODO
+    }
 	
 }

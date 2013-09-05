@@ -53,6 +53,9 @@ public class Namespaces {
 	// docProps/custom.xml
 	public final static String PROPERTIES_CUSTOM = 
 		"http://schemas.openxmlformats.org/officeDocument/2006/relationships/custom-properties";
+
+	public final static String PROPERTIES_COVERPAGE = 
+			"http://schemas.microsoft.com/‌office/‌2006/‌coverPageProps";
 	
 	public final static String IMAGE = 
 		"http://schemas.openxmlformats.org/officeDocument/2006/relationships/image";
@@ -89,6 +92,10 @@ public class Namespaces {
 	// word/theme/theme1.xml
 	public final static String THEME  = 
 		"http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme";
+
+	// ppt/theme/themeOverride1.xml
+	public final static String THEME_OVERRIDE  = 
+			"http://schemas.openxmlformats.org/officeDocument/2006/relationships/themeOverride";
 	
 	// word/fontTable.xml
 	public final static String FONT_TABLE = 

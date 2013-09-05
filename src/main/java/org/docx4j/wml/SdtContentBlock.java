@@ -1,5 +1,5 @@
 /*
- *  Copyright 2007-2008, Plutext Pty Ltd.
+ *  Copyright 2007-2013, Plutext Pty Ltd.
  *   
  *  This file is part of docx4j.
 
@@ -18,7 +18,9 @@
 
  */
 
-package org.docx4j.wml;
+
+package org.docx4j.wml; 
+
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,7 +35,8 @@ import javax.xml.bind.annotation.XmlTransient;
 import javax.xml.bind.annotation.XmlType;
 import org.docx4j.math.CTOMath;
 import org.docx4j.math.CTOMathPara;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.jvnet.jaxb2_commons.ppp.Child;
 
 
@@ -56,118 +59,110 @@ import org.jvnet.jaxb2_commons.ppp.Child;
  */
 @XmlAccessorType(XmlAccessType.FIELD)
 @XmlType(name = "CT_SdtContentBlock", propOrder = {
-    "egContentBlockContent"
+    "content"
 })
 @XmlRootElement(name = "sdtContent")
 public class SdtContentBlock
     implements Child, ContentAccessor
 {
-	private static Logger log = Logger.getLogger(SdtContentBlock.class);	
-	
+	private static Logger log = LoggerFactory.getLogger(SdtContentBlock.class);	
+
     @XmlElementRefs({
-        @XmlElementRef(name = "customXmlMoveToRangeStart", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", type = JAXBElement.class),
-        @XmlElementRef(name = "commentRangeStart", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", type = CommentRangeStart.class),
-        @XmlElementRef(name = "moveTo", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", type = JAXBElement.class),
+        @XmlElementRef(name = "moveToRangeStart", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", type = JAXBElement.class),
+        @XmlElementRef(name = "permEnd", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", type = JAXBElement.class),
         @XmlElementRef(name = "ins", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", type = RunIns.class),
         @XmlElementRef(name = "p", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", type = P.class),
-        @XmlElementRef(name = "oMath", namespace = "http://schemas.openxmlformats.org/officeDocument/2006/math", type = JAXBElement.class),
-        @XmlElementRef(name = "customXmlInsRangeEnd", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", type = JAXBElement.class),
-        @XmlElementRef(name = "bookmarkStart", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", type = JAXBElement.class),
-        @XmlElementRef(name = "bookmarkEnd", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", type = JAXBElement.class),
         @XmlElementRef(name = "moveFrom", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", type = JAXBElement.class),
-        @XmlElementRef(name = "sdt", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", type = SdtBlock.class),
-        @XmlElementRef(name = "customXmlMoveToRangeEnd", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", type = JAXBElement.class),
-        @XmlElementRef(name = "permStart", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", type = JAXBElement.class),
-        @XmlElementRef(name = "customXmlMoveFromRangeEnd", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", type = JAXBElement.class),
+        @XmlElementRef(name = "customXmlDelRangeEnd", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", type = JAXBElement.class),
+        @XmlElementRef(name = "proofErr", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", type = ProofErr.class),
         @XmlElementRef(name = "commentRangeEnd", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", type = CommentRangeEnd.class),
         @XmlElementRef(name = "customXmlInsRangeStart", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", type = JAXBElement.class),
-        @XmlElementRef(name = "permEnd", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", type = JAXBElement.class),
-        @XmlElementRef(name = "customXmlDelRangeStart", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", type = JAXBElement.class),
-        @XmlElementRef(name = "moveFromRangeStart", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", type = JAXBElement.class),
-        @XmlElementRef(name = "proofErr", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", type = ProofErr.class),
-        @XmlElementRef(name = "customXmlDelRangeEnd", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", type = JAXBElement.class),
         @XmlElementRef(name = "del", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", type = RunDel.class),
-        @XmlElementRef(name = "moveFromRangeEnd", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", type = JAXBElement.class),
+        @XmlElementRef(name = "moveTo", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", type = JAXBElement.class),
+        @XmlElementRef(name = "customXml", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", type = JAXBElement.class),
+        @XmlElementRef(name = "sdt", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", type = SdtBlock.class),
         @XmlElementRef(name = "oMathPara", namespace = "http://schemas.openxmlformats.org/officeDocument/2006/math", type = JAXBElement.class),
-        @XmlElementRef(name = "moveToRangeEnd", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", type = JAXBElement.class),
+        @XmlElementRef(name = "moveFromRangeStart", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", type = JAXBElement.class),
+        @XmlElementRef(name = "customXmlDelRangeStart", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", type = JAXBElement.class),
+        @XmlElementRef(name = "customXmlMoveToRangeStart", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", type = JAXBElement.class),
         @XmlElementRef(name = "tbl", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", type = JAXBElement.class),
-        @XmlElementRef(name = "moveToRangeStart", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", type = JAXBElement.class),
+        @XmlElementRef(name = "moveFromRangeEnd", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", type = JAXBElement.class),
+        @XmlElementRef(name = "bookmarkStart", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", type = JAXBElement.class),
+        @XmlElementRef(name = "customXmlMoveFromRangeEnd", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", type = JAXBElement.class),
+        @XmlElementRef(name = "moveToRangeEnd", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", type = JAXBElement.class),
+        @XmlElementRef(name = "commentRangeStart", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", type = CommentRangeStart.class),
+        @XmlElementRef(name = "customXmlMoveToRangeEnd", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", type = JAXBElement.class),
+        @XmlElementRef(name = "customXmlInsRangeEnd", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", type = JAXBElement.class),
+        @XmlElementRef(name = "permStart", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", type = JAXBElement.class),
+        @XmlElementRef(name = "oMath", namespace = "http://schemas.openxmlformats.org/officeDocument/2006/math", type = JAXBElement.class),
         @XmlElementRef(name = "customXmlMoveFromRangeStart", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", type = JAXBElement.class),
-        @XmlElementRef(name = "customXml", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", type = JAXBElement.class)
+        @XmlElementRef(name = "bookmarkEnd", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", type = JAXBElement.class)
     })
-    protected List<Object> egContentBlockContent;
+    protected List<Object> content;
     @XmlTransient
     private Object parent;
 
     /**
-     * Gets the value of the egContentBlockContent property.
+     * Gets the value of the content property.
      * 
      * <p>
      * This accessor method returns a reference to the live list,
      * not a snapshot. Therefore any modification you make to the
      * returned list will be present inside the JAXB object.
-     * This is why there is not a <CODE>set</CODE> method for the egContentBlockContent property.
+     * This is why there is not a <CODE>set</CODE> method for the content property.
      * 
      * <p>
      * For example, to add a new item, do as follows:
      * <pre>
-     *    getEGContentBlockContent().add(newItem);
+     *    getContent().add(newItem);
      * </pre>
      * 
      * 
      * <p>
      * Objects of the following type(s) are allowed in the list
-     * {@link JAXBElement }{@code <}{@link CTTrackChange }{@code >}
-     * {@link CommentRangeStart }
-     * {@link JAXBElement }{@code <}{@link RunTrackChange }{@code >}
+     * {@link JAXBElement }{@code <}{@link CTMoveBookmark }{@code >}
+     * {@link JAXBElement }{@code <}{@link CTPerm }{@code >}
      * {@link RunIns }
      * {@link P }
-     * {@link JAXBElement }{@code <}{@link CTOMath }{@code >}
-     * {@link JAXBElement }{@code <}{@link CTMarkup }{@code >}
-     * {@link JAXBElement }{@code <}{@link CTBookmark }{@code >}
-     * {@link JAXBElement }{@code <}{@link CTMarkupRange }{@code >}
      * {@link JAXBElement }{@code <}{@link RunTrackChange }{@code >}
-     * {@link SdtBlock }
      * {@link JAXBElement }{@code <}{@link CTMarkup }{@code >}
-     * {@link JAXBElement }{@code <}{@link RangePermissionStart }{@code >}
-     * {@link JAXBElement }{@code <}{@link CTMarkup }{@code >}
+     * {@link ProofErr }
      * {@link CommentRangeEnd }
      * {@link JAXBElement }{@code <}{@link CTTrackChange }{@code >}
-     * {@link JAXBElement }{@code <}{@link CTPerm }{@code >}
-     * {@link JAXBElement }{@code <}{@link CTTrackChange }{@code >}
-     * {@link JAXBElement }{@code <}{@link CTMoveBookmark }{@code >}
-     * {@link ProofErr }
-     * {@link JAXBElement }{@code <}{@link CTMarkup }{@code >}
      * {@link RunDel }
-     * {@link JAXBElement }{@code <}{@link CTMarkupRange }{@code >}
-     * {@link JAXBElement }{@code <}{@link CTOMathPara }{@code >}
-     * {@link JAXBElement }{@code <}{@link CTMarkupRange }{@code >}
-     * {@link JAXBElement }{@code <}{@link CTTrackChange }{@code >}
-     * {@link JAXBElement }{@code <}{@link CTMoveBookmark }{@code >}
-     * {@link JAXBElement }{@code <}{@link Tbl }{@code >}
+     * {@link JAXBElement }{@code <}{@link RunTrackChange }{@code >}
      * {@link JAXBElement }{@code <}{@link CTCustomXmlBlock }{@code >}
+     * {@link SdtBlock }
+     * {@link JAXBElement }{@code <}{@link CTOMathPara }{@code >}
+     * {@link JAXBElement }{@code <}{@link CTMoveBookmark }{@code >}
+     * {@link JAXBElement }{@code <}{@link CTTrackChange }{@code >}
+     * {@link JAXBElement }{@code <}{@link CTTrackChange }{@code >}
+     * {@link JAXBElement }{@code <}{@link Tbl }{@code >}
+     * {@link JAXBElement }{@code <}{@link CTMoveFromRangeEnd }{@code >}
+     * {@link JAXBElement }{@code <}{@link CTBookmark }{@code >}
+     * {@link JAXBElement }{@code <}{@link CTMarkup }{@code >}
+     * {@link JAXBElement }{@code <}{@link CTMoveToRangeEnd }{@code >}
+     * {@link CommentRangeStart }
+     * {@link JAXBElement }{@code <}{@link CTMarkup }{@code >}
+     * {@link JAXBElement }{@code <}{@link CTMarkup }{@code >}
+     * {@link JAXBElement }{@code <}{@link RangePermissionStart }{@code >}
+     * {@link JAXBElement }{@code <}{@link CTOMath }{@code >}
+     * {@link JAXBElement }{@code <}{@link CTTrackChange }{@code >}
+     * {@link JAXBElement }{@code <}{@link CTMarkupRange }{@code >}
      * 
-     * 
-     */
-    @Deprecated
-    public List<Object> getEGContentBlockContent() {
-        if (egContentBlockContent == null) {
-            egContentBlockContent = new ArrayList<Object>();
-        }
-        return this.egContentBlockContent;
-    }
-
-    /**
-     * Get the content of this element.
      * @since 2.7
      */
     public List<Object> getContent() {
-        if (egContentBlockContent == null) {
-            egContentBlockContent = new ArrayList<Object>();
+        if (content == null) {
+            content = new ArrayList<Object>();
         }
-        return this.egContentBlockContent;
+        return this.content;
     }
-    
+
+    @Deprecated
+    public List<Object> getEGContentBlockContent() {
+    	return getContent();
+    }
     /**
      * Gets the parent object in the object tree representing the unmarshalled xml document.
      * 
@@ -196,10 +191,10 @@ public class SdtContentBlock
 
     public void replaceElement(Object current, List insertions) {
 
-    	int index = egContentBlockContent.indexOf(current);    	
+    	int index = getContent().indexOf(current);    	
     	if (index > -1 ) {    		
-    		egContentBlockContent.addAll(index+1, insertions);  
-    		Object removed = egContentBlockContent.remove(index);
+    		getContent().addAll(index+1, insertions);  
+    		Object removed = getContent().remove(index);
     		// sanity check
     		if (!current.equals(removed)) {
     			log.error("removed wrong object?");

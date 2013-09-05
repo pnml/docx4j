@@ -27,6 +27,7 @@ import javax.xml.namespace.QName;
 
 import org.docx4j.XmlUtils;
 import org.docx4j.jaxb.Context;
+import org.docx4j.sharedtypes.STOnOff;
 import org.docx4j.wml.BooleanDefaultTrue;
 import org.docx4j.wml.CTBorder;
 import org.docx4j.wml.CTCnf;
@@ -40,6 +41,7 @@ import org.docx4j.wml.CTSignedTwipsMeasure;
 import org.docx4j.wml.CTTabStop;
 import org.docx4j.wml.CTTblCellMar;
 import org.docx4j.wml.CTTblLayoutType;
+import org.docx4j.wml.CTTblLook;
 import org.docx4j.wml.CTTblOverlap;
 import org.docx4j.wml.CTTblPPr;
 import org.docx4j.wml.CTTblPrBase;
@@ -81,6 +83,7 @@ import org.docx4j.wml.STTblLayoutType;
 import org.docx4j.wml.STTblOverlap;
 import org.docx4j.wml.STTblStyleOverrideType;
 import org.docx4j.wml.STTextEffect;
+import org.docx4j.wml.STTheme;
 import org.docx4j.wml.STThemeColor;
 import org.docx4j.wml.STVAnchor;
 import org.docx4j.wml.STVerticalAlignRun;
@@ -232,6 +235,8 @@ public class StyleUtil {
 				 areEqual(rPr1.getEm(), rPr2.getEm()) &&
 				 areEqual(rPr1.getSpecVanish(), rPr2.getSpecVanish()) &&
 				 areEqual(rPr1.getOMath(), rPr2.getOMath())
+				 
+				 // rPr1.getLang()  ??
 				 )
 			    );
 	}
@@ -296,6 +301,25 @@ public class StyleUtil {
 				 areEqual(tblPr1.getTblLook(), tblPr2.getTblLook())
 				)
 			   );
+	}
+
+	public static boolean areEqual(CTTblLook tblLook1, CTTblLook tblLook2) {
+		return ((tblLook1 == tblLook2) || 
+				((tblLook1 !=null) && (tblLook2 !=null) &&
+						areEqual(tblLook1.getVal(), tblLook2.getVal()) &&
+						areEqual(tblLook1.getFirstColumn(), tblLook2.getFirstColumn()) &&
+						areEqual(tblLook1.getFirstRow(), tblLook2.getFirstRow()) &&
+						areEqual(tblLook1.getLastColumn(), tblLook2.getLastColumn()) &&
+						areEqual(tblLook1.getLastRow(), tblLook2.getLastRow()) &&
+						areEqual(tblLook1.getNoHBand(), tblLook2.getNoHBand()) &&
+						areEqual(tblLook1.getNoVBand(), tblLook2.getNoVBand())
+						)
+						);
+	}
+						
+	
+	private static boolean areEqual(STOnOff oo1, STOnOff oo2) {
+		return (oo1 == oo2);
 	}
 
 	public static boolean areEqual(TcPr tcPr1, TcPr tcPr2) {
@@ -984,7 +1008,7 @@ public class StyleUtil {
 			   (bool2 != null ? bool2.booleanValue() : false);
 	}
 
-	protected static boolean areEqual(BigInteger val1, BigInteger val2) {
+	public static boolean areEqual(BigInteger val1, BigInteger val2) {
 		return (val1 == val2) ||
 		       ((val1 != null) && (val1.equals(val2)));
 	}
@@ -1360,11 +1384,21 @@ public class StyleUtil {
 	}
 
 	public static boolean isEmpty(RFonts rFonts) {
-		//Comparing the ascii version should be enough in most cases 
 		return (rFonts == null) ||
-		       isEmpty(rFonts.getAscii());
+				(isEmpty(rFonts.getAscii())
+						&& isEmpty(rFonts.getAsciiTheme())
+						&& isEmpty(rFonts.getCs())
+						&& isEmpty(rFonts.getCstheme())
+						&& isEmpty(rFonts.getEastAsia())
+						&& isEmpty(rFonts.getEastAsiaTheme())
+						&& isEmpty(rFonts.getHAnsi())
+						&& isEmpty(rFonts.getHAnsiTheme()));
 	}
 
+	public static boolean isEmpty(STTheme stTheme) {
+		return (stTheme == null) ;
+	}
+	
 	public static boolean isEmpty(RStyle rStyle) {
 		return (rStyle == null) ||
 	       isEmpty(rStyle.getVal());
@@ -1413,6 +1447,18 @@ public class StyleUtil {
 		return (color == null) || isEmpty(color.getVal());
 	}
 
+	public static boolean isEmpty(CTTblLook tblLook) {
+		return (tblLook == null) || 
+				(tblLook.getFirstColumn()==null &&
+				tblLook.getFirstRow()==null && 
+				tblLook.getLastColumn()==null && 
+				tblLook.getLastRow()==null && 
+				tblLook.getNoHBand()==null && 
+				tblLook.getNoVBand()==null &&
+				tblLook.getVal()==null
+				);
+	}
+	
 	public static boolean isEmpty(CTTblLayoutType tblLayout) {
 		return (tblLayout == null) || (tblLayout.getType() == null);
 	}
@@ -1527,7 +1573,8 @@ public class StyleUtil {
 	}
 
 	public static boolean isEmpty(BooleanDefaultTrue booleanDefaultTrue) {
-		return (booleanDefaultTrue == null) || (!booleanDefaultTrue.isVal());
+		return (booleanDefaultTrue == null);  // we want to apply eg <w:i w:val="0"/>
+		//|| (!booleanDefaultTrue.isVal());
 	}
 
 	public static boolean isEmpty(Boolean bool) {
@@ -1554,6 +1601,9 @@ public class StyleUtil {
 	
 /////////////////////////////////////////////
 //apply-Methods
+//
+// see similar ImmutablePropertyResolver
+//	
 /////////////////////////////////////////////
 	
 	public static void apply(Style source, Style destination) {
@@ -1569,6 +1619,9 @@ public class StyleUtil {
 			destination.setTblPr(apply(source.getTblPr(), destination.getTblPr()));
 			destination.setTcPr(apply(source.getTcPr(), destination.getTcPr()));
 			apply(source.getTblStylePr(), destination.getTblStylePr());
+			
+			destination.setPPr(apply(source.getPPr(), destination.getPPr()));
+			destination.setRPr(apply(source.getRPr(), destination.getRPr()));
 		}
 	}
 
@@ -1625,6 +1678,8 @@ public class StyleUtil {
 		if (!isEmpty(source)) {
 			if (destination == null) 
 				destination = Context.getWmlObjectFactory().createRPr();
+			
+			// getLang TODO
 			
 			destination.setRStyle(apply(source.getRStyle(), destination.getRStyle()));
 			destination.setRFonts(apply(source.getRFonts(), destination.getRFonts()));
@@ -1852,6 +1907,25 @@ public class StyleUtil {
 				}
 			}
 		}
+	}
+
+	public static CTTblLook apply(CTTblLook source, CTTblLook destination) {
+		if (!isEmpty(source)) {
+			if (destination == null)
+				destination = Context.getWmlObjectFactory().createCTTblLook();
+			destination.setFirstColumn(apply(source.getFirstColumn(), destination.getFirstColumn()));
+			destination.setFirstRow(apply(source.getFirstRow(), destination.getFirstRow()));
+			destination.setLastColumn(apply(source.getLastColumn(), destination.getLastColumn()));
+			destination.setLastRow(apply(source.getLastRow(), destination.getLastRow()));
+			destination.setNoHBand(apply(source.getNoHBand(), destination.getNoHBand()));
+			destination.setNoVBand(apply(source.getNoVBand(), destination.getNoVBand()));
+			destination.setVal(apply(source.getVal(), destination.getVal()));
+		}
+		return destination;
+	}
+	
+	private static STOnOff apply(STOnOff source, STOnOff destination) {
+		return (source == null ? destination : source);
 	}
 
 	public static CTTblStylePr apply(CTTblStylePr source, CTTblStylePr destination) {
@@ -2085,6 +2159,11 @@ public class StyleUtil {
 			destination.setCs(source.getCs());
 			destination.setEastAsia(source.getEastAsia());
 			destination.setHAnsi(source.getHAnsi());
+
+			destination.setAsciiTheme(source.getAsciiTheme());
+			destination.setCstheme(source.getCstheme());
+			destination.setEastAsiaTheme(source.getEastAsiaTheme());
+			destination.setHAnsiTheme(source.getHAnsiTheme());
 		}
 		return destination;
 	}
@@ -2463,8 +2542,12 @@ public class StyleUtil {
 		return (source == null ? destination : source);
 	}
 
+//	protected static BigInteger apply(BigInteger source, BigInteger destination) {
+//		return (source == null || BigInteger.ZERO.equals(source) ? destination : source);
+//	}
+	// Need to honour eg <w:ind w:firstLine="0"/>
 	protected static BigInteger apply(BigInteger source, BigInteger destination) {
-		return (source == null || BigInteger.ZERO.equals(source) ? destination : source);
+		return (source == null  ? destination : source);
 	}
 
 	protected static Integer apply(Integer source, Integer destination) {

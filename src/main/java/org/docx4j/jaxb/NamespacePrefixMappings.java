@@ -157,6 +157,18 @@ public class NamespacePrefixMappings implements NamespaceContext {
     		return "WX";
     	}
 
+    	if (namespaceUri.equals("http://schemas.microsoft.com/office/word/2006/wordml")) {
+    		return "wne";
+    	}
+
+    	if (namespaceUri.equals("http://schemas.microsoft.com/office/word/2010/wordml")) {
+    		return "w14";
+    	}
+
+    	if (namespaceUri.equals("http://schemas.microsoft.com/office/word/2012/wordml")) {
+    		return "w15";
+    	}
+    	
     	if (namespaceUri.equals("http://schemas.microsoft.com/aml/2001/core")) {
     		return "aml";
     	}
@@ -221,9 +233,9 @@ public class NamespacePrefixMappings implements NamespaceContext {
 //		if (namespaceUri.equals("http://schemas.openxmlformats.org/drawingml/2006/chartDrawing")) {
 //    		return "?";
 //		}  
-//		if (namespaceUri.equals("http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing")) {
-//    		return "?";
-//		}  
+		if (namespaceUri.equals("http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing")) {
+    		return "xdr";
+		}  
 //		if (namespaceUri.equals("http://schemas.openxmlformats.org/officeDocument/2006/bibliography")) {
 //    		return "?";
 //		}  
@@ -243,7 +255,7 @@ public class NamespacePrefixMappings implements NamespaceContext {
     	if (namespaceUri.equals("http://schemas.openxmlformats.org/markup-compatibility/2006")) {
     		return "mc";
     	}
-		
+    	
     	return suggestion;
     }
     
@@ -253,7 +265,12 @@ public class NamespacePrefixMappings implements NamespaceContext {
     // implement NamespaceContext,
     // for use with for use with javax.xml.xpath
     
-	public String getNamespaceURI(String prefix) {
+	public String getNamespaceURI(String prefix) {  // implementing NamespaceContext
+		
+		// Excel uses a default namespace, not a prefix.  But it is convenient
+		// to be able to use a prefix in XPath
+		if (prefix.equals("s"))
+			return "http://schemas.openxmlformats.org/spreadsheetml/2006/main";				
 		
 		return getNamespaceURIStatic(prefix);
 	}
@@ -313,7 +330,16 @@ public class NamespacePrefixMappings implements NamespaceContext {
 
 		if (prefix.equals("WX"))
 			return "http://schemas.microsoft.com/office/word/2003/auxHint";
+		
+		if (prefix.equals("wne"))
+			return "http://schemas.microsoft.com/office/word/2006/wordml";
 
+		if (prefix.equals("w14"))
+			return "http://schemas.microsoft.com/office/word/2010/wordml";
+
+		if (prefix.equals("w15"))
+			return "http://schemas.microsoft.com/office/word/2012/wordml";
+		
 		if (prefix.equals("aml"))
 			return "http://schemas.microsoft.com/aml/2001/core";
 
@@ -339,7 +365,12 @@ public class NamespacePrefixMappings implements NamespaceContext {
 			return "http://schemas.openxmlformats.org/officeDocument/2006/customXml";
 
 		if (prefix.equals("mc"))
-			return "http://schemas.openxmlformats.org/markup-compatibility/2006";		
+			return "http://schemas.openxmlformats.org/markup-compatibility/2006";	
+		
+		if (prefix.equals("xdr"))
+			return "http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing";	
+		
+		
 		
 		// OpenDoPE
 		if (prefix.equals("odx"))
@@ -361,7 +392,7 @@ public class NamespacePrefixMappings implements NamespaceContext {
 			return Namespaces.XML_EVENTS;
 		else if (prefix.equals("xs"))
 			return Namespaces.XML_SCHEMA;
-		
+
 		// Registered prefixes
 		String result = namespaces.get(prefix);
 		if (result==null) {
@@ -372,7 +403,12 @@ public class NamespacePrefixMappings implements NamespaceContext {
 		
 	}
 
-	public String getPrefix(String namespaceURI) {
+	public String getPrefix(String namespaceURI) {  // implementing NamespaceContext
+		
+    	// Excel uses a default namespace, not a prefix. 
+    	if (namespaceURI.equals("http://schemas.openxmlformats.org/spreadsheetml/2006/main")) {
+    		return "";
+    	}
 		
 		return getPreferredPrefixStatic(namespaceURI, null, false );
 		

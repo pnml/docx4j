@@ -1,4 +1,3 @@
-
 package org.opendope.conditions;
 
 import static org.docx4j.model.datastorage.XPathEnhancerParser.enhanceXPath;
@@ -15,7 +14,8 @@ import javax.xml.bind.annotation.XmlType;
 import javax.xml.bind.annotation.adapters.CollapsedStringAdapter;
 import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.docx4j.XmlUtils;
 import org.docx4j.model.datastorage.BindingHandler;
 import org.docx4j.model.sdt.QueryString;
@@ -48,7 +48,7 @@ import org.docx4j.openpackaging.parts.opendope.XPathsPart;
 @XmlRootElement(name = "xpathref")
 public class Xpathref implements Evaluable {
 
-	private static Logger log = Logger.getLogger(Xpathref.class);
+	private static Logger log = LoggerFactory.getLogger(Xpathref.class);
 	
     @XmlAttribute(required = true)
     @XmlJavaTypeAdapter(CollapsedStringAdapter.class)
@@ -103,6 +103,23 @@ public class Xpathref implements Evaluable {
 		org.opendope.xpaths.Xpaths.Xpath xpath = XPathsPart.getXPathById(xPaths, id);	
     	theList.add(xpath);
 		
+	}
+	
+	/**
+	 * Map the IDs used in this condition to new values; useful for merging ConditionParts.
+	 * 
+	 * @param xpathIdMap
+	 * @param conditionIdMap
+	 * @since 3.0.0
+	 */
+	public void mapIds(Map<String, String> xpathIdMap, Map<String, String> conditionIdMap) {
+		
+		if (xpathIdMap==null) return;
+		
+		String newId = xpathIdMap.get(getId());
+		if (newId!=null) {
+			setId(newId);
+		}
 	}
 	
 	public String toString(Conditions conditions,

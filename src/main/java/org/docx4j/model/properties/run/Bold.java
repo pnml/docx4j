@@ -19,13 +19,19 @@
  */
 package org.docx4j.model.properties.run;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.docx4j.dml.CTTextCharacterProperties;
 import org.docx4j.jaxb.Context;
+import org.docx4j.model.properties.Property;
 import org.docx4j.wml.BooleanDefaultTrue;
 import org.docx4j.wml.RPr;
 import org.w3c.dom.Element;
 import org.w3c.dom.css.CSSValue;
 
 public class Bold extends AbstractRunProperty {
+	
+	protected static Logger log = LoggerFactory.getLogger(Bold.class);		
 	
 	public final static String CSS_NAME = "font-weight"; 
 	public final static String FO_NAME  = "font-weight"; 
@@ -42,13 +48,13 @@ public class Bold extends AbstractRunProperty {
 	}
 	
 	public Bold(CSSValue value) {	
+        BooleanDefaultTrue bdt = Context.getWmlObjectFactory().createBooleanDefaultTrue();
 		
-		if (value.getCssText().toLowerCase().equals("bold")) {
-			this.setObject( Context.getWmlObjectFactory().createBooleanDefaultTrue()  );
-		} else {
-			BooleanDefaultTrue bdt = Context.getWmlObjectFactory().createBooleanDefaultTrue();
+		if (!value.getCssText().toLowerCase().equals("bold")) {
 			bdt.setVal(Boolean.FALSE);
 		}
+
+        this.setObject( bdt );
 	}
 
 	@Override
@@ -77,5 +83,10 @@ public class Bold extends AbstractRunProperty {
 	public void set(RPr rPr) {
 		rPr.setB( (BooleanDefaultTrue)this.getObject() );
 	}
+
+    @Override
+    public void set(CTTextCharacterProperties rPr) {
+        rPr.setB(((BooleanDefaultTrue)this.getObject()).isVal());
+    }
 	
 }

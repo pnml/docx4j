@@ -23,7 +23,8 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.docx4j.XmlUtils;
 import org.docx4j.model.properties.paragraph.Indent;
 import org.docx4j.model.properties.paragraph.Justification;
@@ -89,7 +90,7 @@ public class PropertyFactory {
 	 * a Property object is paragraph or run level.
 	 */
 	
-	protected static Logger log = Logger.getLogger(PropertyFactory.class);
+	protected static Logger log = LoggerFactory.getLogger(PropertyFactory.class);
 	
 	public static List<Property> createProperties(CTTblPrBase  tblPr) {
 		
@@ -415,62 +416,18 @@ public class PropertyFactory {
 //		if (pPr.getMirrorIndents() != null)
 //			dest.setMirrorIndents(pPr.getMirrorIndents());
 		
-		/*
-		 * Where a p has indentation specified by both w:numPr and direct w:ind, eg:
-		 *  
-		    <w:p>
-		      <w:pPr>
-		        <w:numPr>
-		          <w:ilvl w:val="0"/>
-		          <w:numId w:val="2"/>
-		        </w:numPr>
-		        <w:ind w:left="0" w:firstLine="0"/>
-		      </w:pPr>
-
-			we want to ensure that the direct values are given effect.
-			
-			ie indent on direct pPr trumps indent in pPr in numbering, which trumps indent
-			specified in a style.  
-
-		 */
 		Indent indent = null; 
-		boolean numberingIndent = false;
 		if (pPr.getNumPr() == null) {
 			log.debug("No numPr.. ") ; 									
 		} else {
 			// Numbering is mostly handled directly in the HTML & PDF stylesheets			
 			properties.add(new NumberingProperty(pPr.getNumPr()));
-			// but we do want to get w:ind (in case not set elsewhere)
-			if (wmlPackage instanceof WordprocessingMLPackage) {
-				NumberingDefinitionsPart ndp 
-					= ((WordprocessingMLPackage)wmlPackage).getMainDocumentPart().getNumberingDefinitionsPart();
-                if (ndp == null) {
-					log.debug("No NDP?.. ") ; 						                	
-                } else {
-					Ind ind = ndp.getInd(pPr.getNumPr());
-					if (ind==null) {
-						log.debug("No Indent in numbering.. ") ; 						
-					} else {
-						log.debug("Indent from numbering: " + XmlUtils.marshaltoString(ind,  true, true)) ; 
-						indent = new Indent(ind);
-						properties.add(indent);			
-						log.debug("Using w:ind from list level");
-						numberingIndent = true;
-					}
-                }
-			} else {
-				log.info(wmlPackage + " " + wmlPackage.getClass().getName() ) ;
-			}
 		}
 		
-		// Give effect to the prioritisation
-			if (pPr.getInd() != null) {
-				log.debug("Indent from ppr: " + XmlUtils.marshaltoString(pPr.getInd(),  true, true)) ; 
-				if (indent!=null) {
-					properties.remove(indent);
-				}
-				properties.add(new Indent(pPr.getInd()));			
-			}
+		if (pPr.getInd() != null) {
+			log.debug("Indent from ppr: " + XmlUtils.marshaltoString(pPr.getInd(),  true, true)) ; 
+			properties.add(new Indent(pPr.getInd()));			
+		}
 		
 //		if (pPr.getOutlineLvl() != null)
 //			dest.setOutlineLvl(pPr.getOutlineLvl());
@@ -554,10 +511,14 @@ public class PropertyFactory {
 				// font-style
 				return new Italics(value);
 			} else if (name.equals("text-decoration")) {
-				if (value.getCssText().toLowerCase().equals("line-through")) {
+				if (value.getCssText().toLowerCase().equals("line-through")
+				        || value.getCssText().toLowerCase().equals("[line-through]")) {
 					return new Strike(value);
-				} else if (value.getCssText().toLowerCase().equals("underline")) {
+				} else if (value.getCssText().toLowerCase().equals("underline")
+						|| value.getCssText().toLowerCase().equals("[underline]")) {
 					return new Underline(value);
+				} else if (value.getCssText().toLowerCase().equals("none")) {
+					return null;
 				} else {
 					log.error("What to do for " + name + ":" + value.getCssText());
 				}
@@ -567,7 +528,25 @@ public class PropertyFactory {
 			} else if (name.equals(FontSize.CSS_NAME )) {
 				// font-size
 				return new FontSize(value);
-			} 
+			} else if (name.equals(RShading.CSS_NAME )) {
+			    // background color
+			    if(value.getCssText().toLowerCase().equals("transparent")){
+			        return null;
+			    }
+			    // if css value is presented as color, make shading;
+			    // else assume it is string value so highlight
+			    if(simpleRGBCheck(value.getCssText())){
+			        return new RShading(value);
+			    } else {
+			        return new HighlightColor(value);
+			    }
+			} else if (name.equals(VerticalAlignment.CSS_NAME)) {
+			    //default value
+			    if(value.getCssText().equals("baseline")){
+			        return null;
+			    }
+			    return new VerticalAlignment(value);
+			}
 			
 			// Paragraph properties
 			if (name.equals(Indent.CSS_NAME )) {
@@ -585,6 +564,9 @@ public class PropertyFactory {
 			} else if (name.equals(TextAlignmentVertical.CSS_NAME )) {
 				// vertical-align
 				return new TextAlignmentVertical(value);
+			} else if (name.equals(SpaceAfter.CSS_NAME )) {
+				// space-after
+				return new SpaceAfter(value);
 			}		
 		} catch (java.lang.UnsupportedOperationException uoe) {
 			// TODO: consider whether it is right to catch this,
@@ -596,8 +578,35 @@ public class PropertyFactory {
 		return null;
 	}
 	
+	/**
+	 * Now used to create fill property for paragraph only
+	 */
+	public static Property createPropertyFromCssNameForPPr(String name, CSSValue value) {
+	    try {
+	        if (name.equals(PShading.CSS_NAME )) {
+	            // background color
+	            if(value.getCssText().toLowerCase().equals("transparent")){
+	                return null;
+	            }
+	            if(simpleRGBCheck(value.getCssText())){
+	                return new PShading(value);
+	            }
+	        }
+	    } catch (java.lang.UnsupportedOperationException uoe) {
+	        // TODO: consider whether it is right to catch this,
+	        // or whether calling code should handle a docx4j exception wrapping this
+	        log.error("Can't create property from: " + name + ":" + value.getCssText() );
+	        return null;
+	    }
+	    log.debug("How to handle: " + name + "?");
+	    return null;
+	}
 	
-	
-	
+	private static boolean simpleRGBCheck(String cssText){
+	    if(cssText.contains("#") || cssText.contains("rgb")){
+	        return true;
+	    }
+	    return false;
+	}
 
 }

@@ -21,9 +21,10 @@ package org.docx4j.convert.out.html;
 
 import javax.xml.transform.TransformerException;
 
-import org.apache.log4j.Logger;
-import org.docx4j.convert.out.AbstractSymbolWriter;
-import org.docx4j.convert.out.AbstractWmlConversionContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.docx4j.convert.out.common.AbstractWmlConversionContext;
+import org.docx4j.convert.out.common.writer.AbstractSymbolWriter;
 import org.docx4j.fonts.PhysicalFont;
 import org.docx4j.wml.R;
 import org.w3c.dom.Document;
@@ -41,13 +42,19 @@ import org.w3c.dom.Text;
 */
 public class SymbolWriter extends AbstractSymbolWriter {
 	
-  private final static Logger log = Logger.getLogger(SymbolWriter.class);
+	public SymbolWriter() {
+		super();
+	}
 
-  
+	private final static Logger log = LoggerFactory.getLogger(BrWriter.class);
 
-  @Override
-  protected Node toNode(AbstractWmlConversionContext context, R.Sym sym, Document doc) throws TransformerException {
-    String value =  sym.getChar(); 
+
+	@Override
+	public Node toNode(AbstractWmlConversionContext context, Object unmarshalledNode, 
+			Node modelContent, TransformState state, Document doc)
+			throws TransformerException {
+	R.Sym modelData = (R.Sym)unmarshalledNode;
+	String value =  modelData.getChar(); 
 
 	// Pre-process according to ECMA-376 2.3.3.29
 	if (value.startsWith("F0")
@@ -59,7 +66,7 @@ public class SymbolWriter extends AbstractSymbolWriter {
     
 	DocumentFragment docfrag = doc.createDocumentFragment();
 	
-	String fontName = sym.getFont();
+	String fontName = modelData.getFont();
 	PhysicalFont pf = context.getWmlPackage().getFontMapper().getFontMappings().get(fontName);
 
 	if (pf==null) {

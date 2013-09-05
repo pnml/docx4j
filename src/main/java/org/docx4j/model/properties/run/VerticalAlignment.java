@@ -19,7 +19,11 @@
  */
 package org.docx4j.model.properties.run;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.docx4j.dml.CTTextCharacterProperties;
 import org.docx4j.jaxb.Context;
+import org.docx4j.model.properties.Property;
 import org.docx4j.wml.BooleanDefaultTrue;
 import org.docx4j.wml.CTVerticalAlignRun;
 import org.docx4j.wml.RPr;
@@ -34,6 +38,8 @@ import org.w3c.dom.css.CSSValue;
  *
  */
 public class VerticalAlignment extends AbstractRunProperty {
+	
+	protected static Logger log = LoggerFactory.getLogger(VerticalAlignment.class);		
 
 	public final static String CSS_NAME = "vertical-align"; 
 	public final static String FO_NAME  = "vertical-align"; 
@@ -56,9 +62,13 @@ public class VerticalAlignment extends AbstractRunProperty {
 		if (value.getCssText().toLowerCase().equals("top")) {			
 			vAlign.setVal(STVerticalAlignRun.SUPERSCRIPT);			
 			this.setObject( vAlign );
-		} else if (value.getCssText().toLowerCase().equals("bottom")) {
-			vAlign.setVal(STVerticalAlignRun.SUBSCRIPT);			
+		} else if (value.getCssText().toLowerCase().equals("super")) {			
+			vAlign.setVal(STVerticalAlignRun.SUPERSCRIPT);			
 			this.setObject( vAlign );
+		} else if (value.getCssText().toLowerCase().equals("bottom")
+		        || value.getCssText().toLowerCase().equals("sub")) {
+		    vAlign.setVal(STVerticalAlignRun.SUBSCRIPT);			
+		    this.setObject( vAlign );
 		} else {
 			log.warn("What to do with value: " + value.getCssText());
 		}
@@ -104,5 +114,10 @@ public class VerticalAlignment extends AbstractRunProperty {
 	public void set(RPr rPr) {
 		rPr.setVertAlign( (CTVerticalAlignRun)this.getObject() );
 	}
+
+    @Override
+    public void set(CTTextCharacterProperties rPr) {
+        // TODO
+    }
 	
 }

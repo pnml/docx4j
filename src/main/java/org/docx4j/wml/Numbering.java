@@ -1,5 +1,5 @@
 /*
- *  Copyright 2007-2008, Plutext Pty Ltd.
+ *  Copyright 2007-2013, Plutext Pty Ltd.
  *   
  *  This file is part of docx4j.
 
@@ -19,7 +19,9 @@
  */
 
 
-package org.docx4j.wml;
+package org.docx4j.wml; 
+
+import org.jvnet.jaxb2_commons.ppp.Child;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -32,7 +34,6 @@ import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlTransient;
 import javax.xml.bind.annotation.XmlType;
-import org.jvnet.jaxb2_commons.ppp.Child;
 
 
 /**
@@ -196,8 +197,7 @@ import org.jvnet.jaxb2_commons.ppp.Child;
     "numIdMacAtCleanup"
 })
 @XmlRootElement(name = "numbering")
-public class Numbering
-    implements Child
+public class Numbering implements Child
 {
 
     protected List<Numbering.NumPicBullet> numPicBullet;
@@ -433,7 +433,7 @@ public class Numbering
         protected Numbering.AbstractNum.StyleLink styleLink;
         protected Numbering.AbstractNum.NumStyleLink numStyleLink;
         protected List<Lvl> lvl;
-        @XmlAttribute(namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", required = true)
+        @XmlAttribute(name = "abstractNumId", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", required = true)
         protected BigInteger abstractNumId;
         @XmlTransient
         private Object parent;
@@ -689,11 +689,10 @@ public class Numbering
          */
         @XmlAccessorType(XmlAccessType.FIELD)
         @XmlType(name = "")
-        public static class MultiLevelType
-            implements Child
+        public static class MultiLevelType implements Child
         {
 
-            @XmlAttribute(namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", required = true)
+            @XmlAttribute(name = "val", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", required = true)
             protected String val;
             @XmlTransient
             private Object parent;
@@ -770,11 +769,10 @@ public class Numbering
          */
         @XmlAccessorType(XmlAccessType.FIELD)
         @XmlType(name = "")
-        public static class Name
-            implements Child
+        public static class Name implements Child
         {
 
-            @XmlAttribute(namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main")
+            @XmlAttribute(name = "val", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main")
             protected String val;
             @XmlTransient
             private Object parent;
@@ -851,11 +849,10 @@ public class Numbering
          */
         @XmlAccessorType(XmlAccessType.FIELD)
         @XmlType(name = "")
-        public static class NumStyleLink
-            implements Child
+        public static class NumStyleLink implements Child
         {
 
-            @XmlAttribute(namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main")
+            @XmlAttribute(name = "val", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main")
             protected String val;
             @XmlTransient
             private Object parent;
@@ -932,11 +929,10 @@ public class Numbering
          */
         @XmlAccessorType(XmlAccessType.FIELD)
         @XmlType(name = "")
-        public static class StyleLink
-            implements Child
+        public static class StyleLink implements Child
         {
 
-            @XmlAttribute(namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main")
+            @XmlAttribute(name = "val", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main")
             protected String val;
             @XmlTransient
             private Object parent;
@@ -1060,14 +1056,13 @@ public class Numbering
         "abstractNumId",
         "lvlOverride"
     })
-    public static class Num
-        implements Child
+    public static class Num implements Child
     {
 
         @XmlElement(required = true)
         protected Numbering.Num.AbstractNumId abstractNumId;
         protected List<Numbering.Num.LvlOverride> lvlOverride;
-        @XmlAttribute(namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", required = true)
+        @XmlAttribute(name = "numId", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", required = true)
         protected BigInteger numId;
         @XmlTransient
         private Object parent;
@@ -1200,11 +1195,10 @@ public class Numbering
          */
         @XmlAccessorType(XmlAccessType.FIELD)
         @XmlType(name = "")
-        public static class AbstractNumId
-            implements Child
+        public static class AbstractNumId implements Child
         {
 
-            @XmlAttribute(namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", required = true)
+            @XmlAttribute(name = "val", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", required = true)
             protected BigInteger val;
             @XmlTransient
             private Object parent;
@@ -1308,7 +1302,7 @@ public class Numbering
 
             protected Numbering.Num.LvlOverride.StartOverride startOverride;
             protected Lvl lvl;
-            @XmlAttribute(namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", required = true)
+            @XmlAttribute(name = "ilvl", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", required = true)
             protected BigInteger ilvl;
             @XmlTransient
             private Object parent;
@@ -1436,11 +1430,10 @@ public class Numbering
              */
             @XmlAccessorType(XmlAccessType.FIELD)
             @XmlType(name = "")
-            public static class StartOverride
-                implements Child
+            public static class StartOverride implements Child
             {
 
-                @XmlAttribute(namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", required = true)
+                @XmlAttribute(name = "val", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", required = true)
                 protected BigInteger val;
                 @XmlTransient
                 private Object parent;
@@ -1526,11 +1519,10 @@ public class Numbering
      */
     @XmlAccessorType(XmlAccessType.FIELD)
     @XmlType(name = "")
-    public static class NumIdMacAtCleanup
-        implements Child
+    public static class NumIdMacAtCleanup implements Child
     {
 
-        @XmlAttribute(namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", required = true)
+        @XmlAttribute(name = "val", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", required = true)
         protected BigInteger val;
         @XmlTransient
         private Object parent;
@@ -1612,13 +1604,12 @@ public class Numbering
     @XmlType(name = "", propOrder = {
         "pict"
     })
-    public static class NumPicBullet
-        implements Child
+    public static class NumPicBullet implements Child
     {
 
         @XmlElement(required = true)
         protected Pict pict;
-        @XmlAttribute(namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", required = true)
+        @XmlAttribute(name = "numPicBulletId", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", required = true)
         protected BigInteger numPicBulletId;
         @XmlTransient
         private Object parent;

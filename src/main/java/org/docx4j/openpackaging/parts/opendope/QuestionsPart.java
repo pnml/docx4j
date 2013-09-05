@@ -2,7 +2,9 @@ package org.docx4j.openpackaging.parts.opendope;
 
 import javax.xml.bind.JAXBContext;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.docx4j.model.datastorage.InputIntegrityException;
 import org.docx4j.openpackaging.exceptions.InvalidFormatException;
 import org.docx4j.openpackaging.parts.CustomXmlDataStoragePart;
 import org.docx4j.openpackaging.parts.PartName;
@@ -11,7 +13,7 @@ import org.opendope.questions.Question;
 
 public class QuestionsPart extends JaxbCustomXmlDataStoragePart<org.opendope.questions.Questionnaire> {
 	
-	private static Logger log = Logger.getLogger(QuestionsPart.class);		
+	private static Logger log = LoggerFactory.getLogger(QuestionsPart.class);		
 	
 	public QuestionsPart(PartName partName) throws InvalidFormatException {
 		super(partName);
@@ -33,8 +35,7 @@ public class QuestionsPart extends JaxbCustomXmlDataStoragePart<org.opendope.que
 				return qu;
 		}
 		
-		log.warn("Question " + id + " is missing");
-		return null;
+		throw new InputIntegrityException("No question with id " + id );		
 	}
 
 }

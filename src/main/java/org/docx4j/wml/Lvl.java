@@ -1,5 +1,5 @@
 /*
- *  Copyright 2007-2008, Plutext Pty Ltd.
+ *  Copyright 2007-2013, Plutext Pty Ltd.
  *   
  *  This file is part of docx4j.
 
@@ -19,7 +19,9 @@
  */
 
 
-package org.docx4j.wml;
+package org.docx4j.wml; 
+
+import org.jvnet.jaxb2_commons.ppp.Child;
 
 import java.math.BigInteger;
 import javax.xml.bind.Unmarshaller;
@@ -28,7 +30,6 @@ import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlTransient;
 import javax.xml.bind.annotation.XmlType;
-import org.jvnet.jaxb2_commons.ppp.Child;
 
 
 /**
@@ -147,7 +148,7 @@ import org.jvnet.jaxb2_commons.ppp.Child;
  * 
  */
 @XmlAccessorType(XmlAccessType.FIELD)
-@XmlType(namespace="http://schemas.openxmlformats.org/wordprocessingml/2006/main", name = "CT_Lvl", propOrder = {
+@XmlType(name = "CT_Lvl", propOrder = {
     "start",
     "numFmt",
     "lvlRestart",
@@ -161,8 +162,7 @@ import org.jvnet.jaxb2_commons.ppp.Child;
     "pPr",
     "rPr"
 })
-public class Lvl
-    implements Child
+public class Lvl implements Child
 {
 
     protected Lvl.Start start;
@@ -177,11 +177,11 @@ public class Lvl
     protected Jc lvlJc;
     protected PPr pPr;
     protected RPr rPr;
-    @XmlAttribute(namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", required = true)
+    @XmlAttribute(name = "ilvl", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", required = true)
     protected BigInteger ilvl;
-    @XmlAttribute(namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main")
+    @XmlAttribute(name = "tplc", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main")
     protected String tplc;
-    @XmlAttribute(namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main")
+    @XmlAttribute(name = "tentative", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main")
     protected Boolean tentative;
     @XmlTransient
     private Object parent;
@@ -598,15 +598,14 @@ public class Lvl
      */
     @XmlAccessorType(XmlAccessType.FIELD)
     @XmlType(name = "")
-    public static class Legacy
-        implements Child
+    public static class Legacy implements Child
     {
 
-        @XmlAttribute(namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main")
+        @XmlAttribute(name = "legacy", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main")
         protected Boolean legacy;
-        @XmlAttribute(namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main")
+        @XmlAttribute(name = "legacySpace", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main")
         protected BigInteger legacySpace;
-        @XmlAttribute(namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main")
+        @XmlAttribute(name = "legacyIndent", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main")
         protected BigInteger legacyIndent;
         @XmlTransient
         private Object parent;
@@ -740,11 +739,10 @@ public class Lvl
      */
     @XmlAccessorType(XmlAccessType.FIELD)
     @XmlType(name = "")
-    public static class LvlPicBulletId
-        implements Child
+    public static class LvlPicBulletId implements Child
     {
 
-        @XmlAttribute(namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", required = true)
+        @XmlAttribute(name = "val", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", required = true)
         protected BigInteger val;
         @XmlTransient
         private Object parent;
@@ -826,11 +824,10 @@ public class Lvl
      */
     @XmlAccessorType(XmlAccessType.FIELD)
     @XmlType(name = "")
-    public static class LvlRestart
-        implements Child
+    public static class LvlRestart implements Child
     {
 
-        @XmlAttribute(namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", required = true)
+        @XmlAttribute(name = "val", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", required = true)
         protected BigInteger val;
         @XmlTransient
         private Object parent;
@@ -908,11 +905,10 @@ public class Lvl
      */
     @XmlAccessorType(XmlAccessType.FIELD)
     @XmlType(name = "")
-    public static class LvlText
-        implements Child
+    public static class LvlText implements Child
     {
 
-        @XmlAttribute(namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main")
+        @XmlAttribute(name = "val", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main")
         protected String val;
         @XmlAttribute(name = "null", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main")
         protected Boolean _null;
@@ -1019,11 +1015,10 @@ public class Lvl
      */
     @XmlAccessorType(XmlAccessType.FIELD)
     @XmlType(name = "")
-    public static class PStyle
-        implements Child
+    public static class PStyle implements Child
     {
 
-        @XmlAttribute(namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main")
+        @XmlAttribute(name = "val", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main")
         protected String val;
         @XmlTransient
         private Object parent;
@@ -1105,11 +1100,10 @@ public class Lvl
      */
     @XmlAccessorType(XmlAccessType.FIELD)
     @XmlType(name = "")
-    public static class Start
-        implements Child
+    public static class Start implements Child
     {
 
-        @XmlAttribute(namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", required = true)
+        @XmlAttribute(name = "val", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", required = true)
         protected BigInteger val;
         @XmlTransient
         private Object parent;
@@ -1194,11 +1188,10 @@ public class Lvl
      */
     @XmlAccessorType(XmlAccessType.FIELD)
     @XmlType(name = "")
-    public static class Suff
-        implements Child
+    public static class Suff implements Child
     {
 
-        @XmlAttribute(namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", required = true)
+        @XmlAttribute(name = "val", namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", required = true)
         protected String val;
         @XmlTransient
         private Object parent;

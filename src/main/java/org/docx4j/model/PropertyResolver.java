@@ -9,7 +9,8 @@ import java.util.Stack;
 
 import javax.xml.bind.JAXBException;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.docx4j.XmlUtils;
 import org.docx4j.jaxb.Context;
 import org.docx4j.model.properties.Property;
@@ -93,9 +94,9 @@ import org.docx4j.wml.TblPr;
  */
 public class PropertyResolver {
 	
-	private static Logger log = Logger.getLogger(PropertyResolver.class);
+	private static Logger log = LoggerFactory.getLogger(PropertyResolver.class);
 	
-	private DocDefaults docDefaults;	
+//	private DocDefaults docDefaults;	
 	private PPr documentDefaultPPr;
 	private RPr documentDefaultRPr;
 	
@@ -167,6 +168,8 @@ public class PropertyResolver {
 			throw new Docx4JException("Couldn't create default StyleDefinitionsPart", e);
 		}
 		
+		styleDefinitionsPart.createVirtualStylesForDocDefaults();
+		
 		defaultParagraphStyleId = this.styleDefinitionsPart.getDefaultParagraphStyle().getStyleId();
 		defaultCharacterStyleId = this.styleDefinitionsPart.getDefaultCharacterStyle().getStyleId();
 
@@ -174,51 +177,11 @@ public class PropertyResolver {
 		styles = (org.docx4j.wml.Styles)styleDefinitionsPart.getJaxbElement();	
 		initialiseLiveStyles();		
 		
-		// Initialise docDefaults		
-		docDefaults = styles.getDocDefaults();
+		Style docDefaults = styleDefinitionsPart.getStyleById("DocDefaults");
+		documentDefaultPPr = docDefaults.getPPr();
+		documentDefaultRPr = docDefaults.getRPr();
 
-		if (docDefaults == null) {
-			// The only way this can happen is if the
-			// styles definition part is missing the docDefaults element
-			// (these are present in docs created from Word, and
-			// in our default styles, so maybe the user created it using
-			// some 3rd party program?)
-			try {
-				docDefaults = (DocDefaults) XmlUtils
-						.unmarshalString(StyleDefinitionsPart.docDefaultsString);
-			} catch (JAXBException e) {
-				throw new Docx4JException("Problem unmarshalling "
-						+ StyleDefinitionsPart.docDefaultsString, e);
-			}
-		}
-
-		// Setup documentDefaultPPr
-		if (docDefaults.getPPrDefault() == null) {
-			try {
-				documentDefaultPPr = (PPr) XmlUtils
-						.unmarshalString(StyleDefinitionsPart.pPrDefaultsString);
-			} catch (JAXBException e) {
-				throw new Docx4JException("Problem unmarshalling "
-						+ StyleDefinitionsPart.pPrDefaultsString, e);
-			}
-		} else {
-			documentDefaultPPr = docDefaults.getPPrDefault().getPPr();
-		}
-
-		// Setup documentDefaultRPr
-		if (docDefaults.getRPrDefault() == null) {
-			try {
-				documentDefaultRPr = (RPr) XmlUtils
-						.unmarshalString(StyleDefinitionsPart.rPrDefaultsString);
-			} catch (JAXBException e) {
-				throw new Docx4JException("Problem unmarshalling "
-						+ StyleDefinitionsPart.rPrDefaultsString, e);
-			}
-		} else {
-			documentDefaultRPr = docDefaults.getRPrDefault().getRPr();
-		}
-
-		addNormalToResolvedStylePPrComponent();
+			addNormalToResolvedStylePPrComponent();
 		addDefaultParagraphFontToResolvedStyleRPrComponent();
 	}
 
@@ -1097,6 +1060,27 @@ public class PropertyResolver {
     }
 		
 
+	public String getDefaultMajorFontLatin() {
+		
+		if (themePart==null) {
+			// No  theme part - default to Cambria
+			log.info("No theme part - default to Cambria");								
+			return "Cambria"; 			
+		} else {
+			org.docx4j.dml.BaseStyles.FontScheme fontScheme = themePart.getFontScheme();
+			if (fontScheme.getMajorFont()!=null
+					&& fontScheme.getMajorFont().getLatin()!=null) {
+														
+				org.docx4j.dml.TextFont textFont = fontScheme.getMajorFont().getLatin();
+				log.debug("majorFont/latin font is " + textFont.getTypeface() );
+				return textFont.getTypeface(); 
+			} else {
+				// No majorFont/latin in theme part - default to Cambria
+				log.info("No majorFont/latin in theme part - default to Cambria");								
+				return "Cambria"; 
+			}
+		} 
+	}
 	
 	/**
 	 * Returns default document font, by attempting to look at styles/docDefaults/rPrDefault/rPr/rFonts.
@@ -1114,6 +1098,34 @@ public class PropertyResolver {
 		//	   (there is no normal.dot; see http://support.microsoft.com/kb/924460/en-us ) 
 		//	   in this case Calibri and Cambria)
 		// 3.2 if there is no rFonts element, default to Times New Roman.
+		
+		/* Per the spec:
+		 * 
+		 * The ASCII font formats all characters in the ASCII range (character values 0–127). 
+		 * This font is specified using the ascii attribute on the rFonts element.
+		 * 
+		 * The East Asian font formats all characters that belong to Unicode sub ranges for East Asian languages. 
+		 * This font is specified using the eastAsia attribute on the rFonts element.
+		 * 
+		 * The complex script font formats all characters that belong to Unicode sub ranges for complex script languages. 
+		 * This font is specified using the cs attribute on the rFonts element.
+		 * 
+		 * The high ANSI font formats all characters that belong to Unicode sub ranges other than those explicitly included 
+		 * by one of the groups above. This font is specified using the hAnsi attribute on the rFonts element.	
+		 * 
+		 * Per Tristan Davis
+		 * http://openxmldeveloper.org/discussions/formats/f/13/t/150.aspx
+		 * 
+		 * First, the characters are classified into the high ansi / east asian / complex script buckets [per above]
+		 * 
+		 * Next, we grab *one* theme font from the theme for each bucket - in the settings part, there's an element called themeFontLang
+		 * The three attributes on that specify the language to use for the characters in each bucket
+		 * 
+		 * Then you take the language specified for each attribute and look out for the right language in the theme - and you use that font
+		 * 
+		 * See also http://blogs.msdn.com/b/officeinteroperability/archive/2013/04/22/office-open-xml-themes-schemes-and-fonts.aspx
+		 * regarding what to do if the font is not available on the computer.
+		 **/	
 		
 		org.docx4j.wml.RFonts rFonts = documentDefaultRPr.getRFonts();
 		if (rFonts==null) {
@@ -1182,13 +1194,36 @@ public class PropertyResolver {
 							return fontScheme.getMinorFont().getEa().getTypeface();
 						} else {
 							// No minorFont/EA in theme part - default to SimSun
-							log.info("No minorFont/latin in theme part - default to SimSun");								
+							log.info("No minorFont/ea in theme part - default to SimSun");								
 							return "SimSun"; 
 						}
 					} else {
 						// No theme part - default to SimSun
 						log.info("No theme part - default to SimSun");
 						return "SimSun"; 
+					}
+				} else if (rFonts.getEastAsiaTheme().equals(org.docx4j.wml.STTheme.MINOR_H_ANSI)) {
+					// Should use the minorHAnsi theme font as defined in the document's themes part (for text in a high range)
+					// But this isn't part of org.docx4j.dml.FontCollection
+					// http://us.generation-nt.com/answer/how-does-theme1-xml-work-help-38707532.html?page=2 suggests to use latin
+					// but really TODO, should use the algorithm described by Tristan Davis above.
+					if (themePart!=null) {
+						org.docx4j.dml.BaseStyles.FontScheme fontScheme = themePart.getFontScheme();
+						if (fontScheme.getMinorFont()!=null
+								&& fontScheme.getMinorFont().getLatin()!=null) {
+																	
+							org.docx4j.dml.TextFont textFont = fontScheme.getMinorFont().getLatin();
+							log.debug("minorFont/latin font is " + textFont.getTypeface() );
+							return textFont.getTypeface(); 
+						} else {
+							// No minorFont/latin in theme part - default to Calibri
+							log.info("No minorFont/latin in theme part - default to Calibri");								
+							return "Calibri"; 
+						}
+					} else {
+						// No theme part - default to Calibri
+						log.info("No theme part - default to Calibri");
+						return "Calibri"; 
 					}
 				} else {
 					// TODO
@@ -1334,6 +1369,7 @@ public class PropertyResolver {
 		Map stylesDefined = new java.util.HashMap();
 	     for (Iterator iter = styles.getStyle().iterator(); iter.hasNext();) {
 	            org.docx4j.wml.Style s = (org.docx4j.wml.Style)iter.next();
+	            log.debug("adding " + s.getStyleId());
 	            stylesDefined.put(s.getStyleId(), s);
 	     }
 	     

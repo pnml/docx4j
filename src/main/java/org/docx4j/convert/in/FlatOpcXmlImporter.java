@@ -33,8 +33,10 @@ import javax.xml.bind.JAXBException;
 import javax.xml.bind.Unmarshaller;
 import javax.xml.parsers.DocumentBuilderFactory;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.docx4j.XmlUtils;
+import org.docx4j.docProps.coverPageProps.CoverPageProperties;
 import org.docx4j.jaxb.Context;
 import org.docx4j.model.datastorage.CustomXmlDataStorage;
 import org.docx4j.openpackaging.Base;
@@ -48,6 +50,7 @@ import org.docx4j.openpackaging.io.Load;
 import org.docx4j.openpackaging.packages.OpcPackage;
 import org.docx4j.openpackaging.packages.PresentationMLPackage;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
+import org.docx4j.openpackaging.parts.DocPropsCoverPagePart;
 import org.docx4j.openpackaging.parts.Part;
 import org.docx4j.openpackaging.parts.PartName;
 import org.docx4j.openpackaging.parts.XmlPart;
@@ -96,7 +99,7 @@ import org.w3c.dom.DOMException;
  */
 public class FlatOpcXmlImporter  {
 	
-	private static Logger log = Logger.getLogger(FlatOpcXmlImporter.class);
+	private static Logger log = LoggerFactory.getLogger(FlatOpcXmlImporter.class);
 
 	public FlatOpcXmlImporter(InputStream is) throws JAXBException {
 		
@@ -108,8 +111,17 @@ public class FlatOpcXmlImporter  {
 //				new javax.xml.transform.stream.StreamSource(is))).getValue(); 
 
 		// JAXB RI unmarshalls to JAXBElement; MOXy gives Package directly
-		org.docx4j.xmlPackage.Package flatOpcXml = (org.docx4j.xmlPackage.Package)XmlUtils.unwrap(u.unmarshal(
-				new javax.xml.transform.stream.StreamSource(is))); 
+		org.docx4j.xmlPackage.Package flatOpcXml = null;
+		try {
+			flatOpcXml = (org.docx4j.xmlPackage.Package)XmlUtils.unwrap(u.unmarshal(
+					new javax.xml.transform.stream.StreamSource(is)));
+		} catch ( javax.xml.bind.UnmarshalException e) {
+			if (e.getMessage().contains("http://schemas.microsoft.com/office/word/2003/wordml")) {
+				throw new IllegalArgumentException("Word 2003 XML is not supported. Use a docx or Flat OPC XML instead, or look at the Word2003XmlConverter proof of concept.");	
+				// So as not to change existing throws clause
+			}
+			throw e;
+		}
 		
 		init(flatOpcXml);
 		
@@ -450,7 +462,7 @@ public class FlatOpcXmlImporter  {
 					((org.docx4j.openpackaging.parts.JaxbXmlPart)part).unmarshal( el );
 					
 				} else if (part instanceof org.docx4j.openpackaging.parts.DocPropsCorePart ) {
-
+					
 						((org.docx4j.openpackaging.parts.JaxbXmlPart)part).setJAXBContext(Context.jcDocPropsCore);
 						((org.docx4j.openpackaging.parts.JaxbXmlPart)part).unmarshal( el );
 						
@@ -504,7 +516,13 @@ public class FlatOpcXmlImporter  {
 						
 						PartName name = part.getPartName();
 						
-						if (o instanceof org.opendope.conditions.Conditions) {
+						if (o instanceof CoverPageProperties) {
+							
+							part = new DocPropsCoverPagePart(name);							
+							((DocPropsCoverPagePart)part).setJaxbElement(
+									(CoverPageProperties)o);
+							
+						} else if (o instanceof org.opendope.conditions.Conditions) {
 							
 							part = new ConditionsPart(name);
 							((ConditionsPart)part).setJaxbElement(

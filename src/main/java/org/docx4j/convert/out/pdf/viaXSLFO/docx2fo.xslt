@@ -68,7 +68,7 @@
 
      ======================================= 
      
-     TODO:  w:hyperlink, cross references.
+     TODO:  cross references.
      
      -->
         
@@ -90,6 +90,8 @@
 	
 <xsl:param name="docxWikiMenu"/>		
 <xsl:param name="docID"/>
+
+
 
 <xsl:template name="pretty-print-block">
   <xsl:text>
@@ -114,7 +116,7 @@
 		<xsl:variable name="logging" 
 			select="java:org.docx4j.convert.out.pdf.PdfConversion.log('/pkg:package')" />
 
-		<fo:root>
+		<fo:root id="docroot">
 
 		  	<xsl:copy-of select="java:org.docx4j.convert.out.pdf.viaXSLFO.LayoutMasterSetBuilder.getLayoutMasterSetFragment( 
 		  		$conversionContext)" />
@@ -149,13 +151,10 @@
 	<xsl:template match="section">
 			<xsl:variable name="dummy"
 				select="java:org.docx4j.convert.out.Converter.moveNextSection($conversionContext)" />
-	
+
 			<xsl:variable name="pageNumberFormat" 
 				select="java:org.docx4j.convert.out.pdf.viaXSLFO.Conversion.getPageNumberFormat($conversionContext)" />
 	
-			<xsl:variable name="pageNumberInitial" 
-				select="java:org.docx4j.convert.out.pdf.viaXSLFO.Conversion.getPageNumberInitial($conversionContext)" />
-
 			<!-- start page-sequence
 				here comes the text (contained in flow objects)
 				the page-sequence can contain different fo:flows
@@ -163,7 +162,11 @@
 				which is to be used to layout the text contained in this
 				page-sequence-->
 				
-			<fo:page-sequence master-reference="{@name}" format="{$pageNumberFormat}" initial-page-number="{$pageNumberInitial}" >
+			<fo:page-sequence master-reference="{@name}" format="{$pageNumberFormat}" id="section_{@name}" >
+				<xsl:if test="java:org.docx4j.convert.out.pdf.viaXSLFO.Conversion.hasPgNumTypeStart($conversionContext)">
+					<xsl:attribute name="initial-page-number"><xsl:value-of 
+						select="java:org.docx4j.convert.out.pdf.viaXSLFO.Conversion.getPageNumberInitial($conversionContext)"/></xsl:attribute>
+				</xsl:if>
 
 				<!--  First Page Header -->
 				<xsl:if
@@ -283,7 +286,7 @@
 
 					<!--  Info -->
 					<xsl:copy-of 
-						select="java:org.docx4j.convert.out.Converter.message($conversionContext, 'TO HIDE THESE MESSAGES, TURN OFF log4j debug level logging for org.docx4j.convert.out.Converter ' )" />  	  		
+						select="java:org.docx4j.convert.out.Converter.message($conversionContext, 'TO HIDE THESE MESSAGES, TURN OFF debug level logging for org.docx4j.convert.out.common.writer.AbstractMessageWriter ' )" />  	  		
 
 					<!--<xsl:apply-templates select="w:body/*" />-->
 					<xsl:apply-templates select="*" />
@@ -345,12 +348,9 @@
   <xsl:template match="w:r">
   
   	<xsl:choose>
-  		<xsl:when test="java:org.docx4j.convert.out.pdf.viaXSLFO.Conversion.inFieldGetState($conversionContext)" >
-  			<!-- in a field, so ignore, unless this run contains a fldChar or instrText -->
-  			
+  		<xsl:when test="java:org.docx4j.convert.out.Converter.isInComplexFieldDefinition($conversionContext)" >
+  			<!-- in a field, so ignore, unless this run contains fldChar -->
 		  	<xsl:if test="w:fldChar"><xsl:apply-templates/></xsl:if>
-  			
-  			<xsl:if test="w:instrText"><xsl:apply-templates/></xsl:if>
   			
   		</xsl:when>
   		<xsl:otherwise>
@@ -546,10 +546,10 @@
 			<xsl:apply-templates /> <!--  select="*[not(name()='w:tblPr' or name()='w:tblGrid')]" /-->
 		</xsl:variable>
 
-		<xsl:variable name="tblNode" select="." />  			
+		<xsl:variable name="currentNode" select="." />  			
 
 		<!--  Create the XSL FO table in Java -->
-	  	<xsl:copy-of select="java:org.docx4j.convert.out.Converter.toNode($conversionContext,$tblNode, $childResults)"/>	  		
+	  	<xsl:copy-of select="java:org.docx4j.convert.out.Converter.toNode($conversionContext,$currentNode, $childResults)"/>	  		
 	  			  		
   </xsl:template>
   
@@ -605,9 +605,9 @@
 		<xsl:apply-templates /> 
 	</xsl:variable>
 
-	<xsl:variable name="symNode" select="." />  			
+	<xsl:variable name="currentNode" select="." />  			
 
-     <xsl:copy-of select="java:org.docx4j.convert.out.Converter.toNode($conversionContext,$symNode, 
+     <xsl:copy-of select="java:org.docx4j.convert.out.Converter.toNode($conversionContext,$currentNode, 
 			$childResults)" />
   		  			
 </xsl:template>
@@ -664,70 +664,26 @@
 		</w:hyperlink>
 -->  
   <xsl:template match="w:hyperlink">
-    <fo:basic-link color="blue" text-decoration="underline" >
-	<xsl:variable name="relId"><xsl:value-of select="string(@r:id)"/></xsl:variable>
-      
-	<xsl:variable name="hTemp" 
-		select="java:org.docx4j.convert.out.Converter.resolveHref(
-		             $conversionContext, $relId )" />
-		                   
-      <xsl:variable name="href">
-          <xsl:value-of select="$hTemp"/>
-        <xsl:choose>
-          <xsl:when test="@w:anchor"><xsl:value-of select="@w:anchor"/></xsl:when>
-          <xsl:when test="@w:bookmark"><xsl:value-of select="@w:bookmark"/></xsl:when>
-          <xsl:when test="@w:arbLocation"><xsl:value-of select="@w:arbLocation"/></xsl:when>
-        </xsl:choose>
-      </xsl:variable>
-      
-        <xsl:choose>
-          <xsl:when test="@w:bookmark">
-            <xsl:attribute name="internal-destination"><xsl:value-of select="$href"/></xsl:attribute>
-          </xsl:when>
-		<!--  TODO: id for anchor, heading etc? Re headers, I think Word may just insert a bookmark -->
-          <xsl:when test="@w:arbLocation">
-            <xsl:attribute name="internal-destination"><xsl:value-of select="$href"/></xsl:attribute>
-          </xsl:when>
-          <xsl:when test="@w:anchor">
-            <xsl:attribute name="internal-destination"><xsl:value-of select="$href"/></xsl:attribute>
-          </xsl:when>
-          <xsl:otherwise>
-          	<!--  TODO file? -->
-	        <xsl:attribute name="external-destination">url(<xsl:value-of select="$href"/>)</xsl:attribute>          
-          </xsl:otherwise>
-        </xsl:choose>
-      
- 		<xsl:apply-templates />      
-    </fo:basic-link>
+	<xsl:variable name="childResults">
+		<xsl:apply-templates /> 
+	</xsl:variable>
+
+	<xsl:variable name="currentNode" select="." />  			
+
+     <xsl:copy-of select="java:org.docx4j.convert.out.Converter.toNode($conversionContext,$currentNode, 
+			$childResults)" />
   </xsl:template>
 
 <!-- <w:bookmarkStart w:id="0" w:name="mybm"/>  -->
 <xsl:template match="w:bookmarkStart" >
-        <xsl:choose>
-          <xsl:when test="preceding-sibling::w:tr or following-sibling::w:tr">
-          	<!-- Need to ignore this, since otherwise it is mistaken 
-          	     for a table row in TableModel's getTc -->
-          </xsl:when>          
-          <xsl:when test="ancestor::w:p"><!--  TODO or other block element -->
-			<fo:inline id="{@w:name}"/>
-          </xsl:when>
-          <xsl:otherwise>
-          <!-- 
-          eg
-          <w:sdtContent>
-        	<w:bookmarkStart w:id="0" w:name="_Toc253042998" w:displacedByCustomXml="prev"/>
-        	<w:p w:rsidR="00BF4F8D" w:rsidRDefault="00BF4F8D" w:rsidP="00112955">
-          
-          which would result in 
-          
-              inline" is not a valid child of "fo:flow"          
-           -->
-		    <fo:block>
-				<fo:inline id="{@w:name}"/>
-		    </fo:block>
-          </xsl:otherwise>
-           
-        </xsl:choose>
+	<xsl:variable name="childResults">
+		<xsl:apply-templates /> 
+	</xsl:variable>
+
+	<xsl:variable name="currentNode" select="." />  			
+
+     <xsl:copy-of select="java:org.docx4j.convert.out.Converter.toNode($conversionContext,$currentNode, 
+			$childResults)" />
 </xsl:template>
 
 <xsl:template match="w:bookmarkStart[@w:name='_GoBack']" />
@@ -797,31 +753,21 @@
     
   <xsl:template match="w:continuationSeparator" />
 
-
+  <!--  Simple fields: several different types are supported, including PAGE, DATE, TIME, PRINTDATE, DOCPROPERTY -->
   <xsl:template match="w:fldSimple" >
-  
+
 		<xsl:variable name="childResults">
 			<xsl:apply-templates/>
 		</xsl:variable>
-				
-		<xsl:copy-of 
-			select="java:org.docx4j.convert.out.pdf.viaXSLFO.Conversion.createBlockForFldSimple(
-		  		$conversionContext, ., $childResults)" />
+
+	  	<xsl:copy-of select="java:org.docx4j.convert.out.Converter.toNode(
+	  			$conversionContext,., $childResults)"/>	  		
   </xsl:template>
-  
+
+  <!--  Complex fields: update complex field definition level -->
   <xsl:template match="w:fldChar" >
 		<xsl:copy-of 
-			select="java:org.docx4j.convert.out.pdf.viaXSLFO.Conversion.inFieldUpdateState($conversionContext, .)" />  	
-  </xsl:template>
-
-  <xsl:template match="w:instrText" >
-		<xsl:variable name="childResults">
-			<xsl:apply-templates/>
-		</xsl:variable>
-			
-		<xsl:copy-of 
-			select="java:org.docx4j.convert.out.pdf.viaXSLFO.Conversion.createBlockForInstrText(
-		  		$conversionContext, ., $childResults)" />
+			select="java:org.docx4j.convert.out.Converter.updateComplexFieldDefinition($conversionContext, .)" />  	
   </xsl:template>
   
    <xsl:template match="w:customXml">

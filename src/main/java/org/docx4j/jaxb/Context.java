@@ -32,14 +32,17 @@ import java.util.jar.Manifest;
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
 
-import org.apache.log4j.Logger;
-import org.docx4j.utils.Log4jConfigurator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.docx4j.utils.ResourceUtils;
 
 public class Context {
 	
 	public static JAXBContext jc;
+	
+	@Deprecated
 	public static JAXBContext jcThemePart;
+	
 	public static JAXBContext jcDocPropsCore;
 	public static JAXBContext jcDocPropsCustom;
 	public static JAXBContext jcDocPropsExtended;
@@ -54,16 +57,11 @@ public class Context {
 
 	public static JAXBContext jcXmlDSig;
 	
-	private static Logger log = Logger.getLogger(Context.class);
-	
-	private static boolean MOXy_intended = false;
-	
+	private static Logger log = LoggerFactory.getLogger(Context.class);
+		
 	static {
 	  
-		Log4jConfigurator.configure();
-		
 		// Display diagnostic info about version of JAXB being used.
-		/*
 		log.info("java.vendor="+System.getProperty("java.vendor"));
 		log.info("java.version="+System.getProperty("java.version"));
 		
@@ -79,18 +77,15 @@ public class Context {
 				File f = new File("src/main/java/org/docx4j/wml/jaxb.properties");
 				if (f.exists() ) {
 					log.info("MOXy JAXB implementation intended..");
-					MOXy_intended = true;
 				} else { 
 					InputStream is = ResourceUtils.getResource("org/docx4j/wml/jaxb.properties");
 					log.info("MOXy JAXB implementation intended..");
-					MOXy_intended = true;
 				}
 			} catch (Exception e2) {
 				log.warn(e2.getMessage());
 				try {
 					InputStream is = ResourceUtils.getResource("org/docx4j/wml/jaxb.properties");
 					log.info("MOXy JAXB implementation intended..");
-					MOXy_intended = true;
 				} catch (Exception e3) {
 					log.warn(e3.getMessage());
 					if ( namespacePrefixMapper.getClass().getName().equals("org.docx4j.jaxb.NamespacePrefixMapperSunInternal") ) {
@@ -105,8 +100,7 @@ public class Context {
 			log.error("PANIC! No suitable JAXB implementation available");
 			e.printStackTrace();
 		}
-*/
-
+      
       try { 
 			
 			// JBOSS might use a different class loader to load JAXBContext, which causes problems,
@@ -117,21 +111,20 @@ public class Context {
 			
 			log.info("loading Context jc");		
 						
-			jc = JAXBContext.newInstance("org.docx4j.wml:" +
+			jc = JAXBContext.newInstance("org.docx4j.wml:org.docx4j.w14:org.docx4j.w15:" +
+					"org.docx4j.schemas.microsoft.com.office.word_2006.wordml:" +
 					"org.docx4j.dml:org.docx4j.dml.chart:org.docx4j.dml.chartDrawing:org.docx4j.dml.compatibility:org.docx4j.dml.diagram:org.docx4j.dml.lockedCanvas:org.docx4j.dml.picture:org.docx4j.dml.wordprocessingDrawing:org.docx4j.dml.spreadsheetdrawing:org.docx4j.dml.diagram2008:" +
 					// All VML stuff is here, since compiling it requires WML and DML (and MathML), but not PML or SML
 					"org.docx4j.vml:org.docx4j.vml.officedrawing:org.docx4j.vml.wordprocessingDrawing:org.docx4j.vml.presentationDrawing:org.docx4j.vml.spreadsheetDrawing:org.docx4j.vml.root:" +
+					"org.docx4j.docProps.coverPageProps:" +
 					"org.opendope.xpaths:org.opendope.conditions:org.opendope.questions:org.opendope.answers:org.opendope.components:org.opendope.SmartArt.dataHierarchy:" +
 					"org.docx4j.math:" +
 					"org.docx4j.sharedtypes:org.docx4j.bibliography",classLoader );
-			String jcImplementation = jc.getClass().getName();
-			log.info("loaded " + jcImplementation + " .. loading others ..");
-			if (MOXy_intended) {
-				if (jcImplementation.contains("org.eclipse.persistence.jaxb.JAXBContext")) {
-					log.info("MOXy is being used.");
-				} else {
-					log.warn("MOXy is not being used, for some reason.");					
-				}
+			
+			if (jc.getClass().getName().equals("org.eclipse.persistence.jaxb.JAXBContext")) {
+				log.info("MOXy JAXB implementation is in use!");
+			} else {
+				log.info("Not using MOXy.");				
 			}
 			
 			jcThemePart = jc; //JAXBContext.newInstance("org.docx4j.dml",classLoader );
@@ -222,7 +215,7 @@ public class Context {
 	            }
 	            catch (Exception e) {
 	                // Silently ignore 
-//	            	log.error(e);
+//	            	log.error(e.getMessage(), e);
 	            }
 	        }
 	    } catch (IOException e1) {

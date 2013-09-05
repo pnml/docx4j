@@ -19,7 +19,12 @@
  */
 package org.docx4j.model.properties.run;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.docx4j.dml.CTTextCharacterProperties;
+import org.docx4j.dml.STTextUnderlineType;
 import org.docx4j.jaxb.Context;
+import org.docx4j.model.properties.Property;
 import org.docx4j.wml.RPr;
 import org.docx4j.wml.U;
 import org.docx4j.wml.UnderlineEnumeration;
@@ -27,6 +32,8 @@ import org.w3c.dom.Element;
 import org.w3c.dom.css.CSSValue;
 
 public class Underline extends AbstractRunProperty {
+	
+	protected static Logger log = LoggerFactory.getLogger(Underline.class);		
 
 	public final static String CSS_NAME = "text-decoration"; 
 	public final static String FO_NAME  = "text-decoration"; 
@@ -44,14 +51,15 @@ public class Underline extends AbstractRunProperty {
 
 	public Underline(CSSValue value) {
 		
-		debug(CSS_NAME, value);
+		//debug(CSS_NAME, value);
 		
 		U u = Context.getWmlObjectFactory().createU();
 		
-		if (value.getCssText().toLowerCase().equals("underline")) {
+		if (value.getCssText().toLowerCase().equals("underline")
+				|| value.getCssText().toLowerCase().equals("[underline]")) {
 			u.setVal(UnderlineEnumeration.SINGLE);
-		} else if (value.getCssText().toLowerCase().equals("underline")) {
-			u.setVal(UnderlineEnumeration.NONE);
+//		} else if (value.getCssText().toLowerCase().equals("underline")) {
+//			u.setVal(UnderlineEnumeration.NONE);
 		} else {
 			log.error("How to handle " + CSS_NAME + " " + value.getCssText().toLowerCase());
 		}
@@ -94,5 +102,16 @@ public class Underline extends AbstractRunProperty {
 	public void set(RPr rPr) {
 		rPr.setU((U)this.getObject());
 	}
+
+    @Override
+    public void set(CTTextCharacterProperties rPr) {
+        if (((U)this.getObject()).getVal()==null ) {
+            rPr.setU(STTextUnderlineType.SNG);
+        } else if (!((U)this.getObject()).getVal().equals( UnderlineEnumeration.NONE ) ) {
+            rPr.setU(STTextUnderlineType.SNG);
+        } else {
+            //
+        }
+    }
 	
 }

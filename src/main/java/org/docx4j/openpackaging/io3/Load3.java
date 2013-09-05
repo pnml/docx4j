@@ -31,11 +31,15 @@ import java.net.URISyntaxException;
 import javax.xml.bind.JAXBElement;
 import javax.xml.bind.Unmarshaller;
 
-import org.apache.log4j.Logger;
+import org.apache.commons.io.IOUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.docx4j.XmlUtils;
+import org.docx4j.docProps.coverPageProps.CoverPageProperties;
 import org.docx4j.jaxb.Context;
 import org.docx4j.model.datastorage.CustomXmlDataStorage;
 import org.docx4j.openpackaging.Base;
+import org.docx4j.openpackaging.PackageRelsUtil;
 import org.docx4j.openpackaging.URIHelper;
 import org.docx4j.openpackaging.contenttype.ContentType;
 import org.docx4j.openpackaging.contenttype.ContentTypeManager;
@@ -48,6 +52,8 @@ import org.docx4j.openpackaging.io3.stores.PartStore;
 import org.docx4j.openpackaging.io3.stores.ZipPartStore;
 import org.docx4j.openpackaging.packages.OpcPackage;
 import org.docx4j.openpackaging.parts.DefaultXmlPart;
+import org.docx4j.openpackaging.parts.DocPropsCoverPagePart;
+import org.docx4j.openpackaging.parts.JaxbXmlPart;
 import org.docx4j.openpackaging.parts.Part;
 import org.docx4j.openpackaging.parts.PartName;
 import org.docx4j.openpackaging.parts.XmlPart;
@@ -55,6 +61,7 @@ import org.docx4j.openpackaging.parts.WordprocessingML.BibliographyPart;
 import org.docx4j.openpackaging.parts.WordprocessingML.BinaryPart;
 import org.docx4j.openpackaging.parts.opendope.ComponentsPart;
 import org.docx4j.openpackaging.parts.opendope.ConditionsPart;
+import org.docx4j.openpackaging.parts.opendope.JaxbCustomXmlDataStoragePart;
 import org.docx4j.openpackaging.parts.opendope.QuestionsPart;
 import org.docx4j.openpackaging.parts.opendope.StandardisedAnswersPart;
 import org.docx4j.openpackaging.parts.opendope.XPathsPart;
@@ -80,7 +87,7 @@ import org.docx4j.relationships.Relationship;
  */
 public class Load3 extends Load {
 		
-	private static Logger log = Logger.getLogger(Load3.class);
+	private static Logger log = LoggerFactory.getLogger(Load3.class);
 
 
 	private PartStore partStore;	
@@ -124,37 +131,43 @@ public class Load3 extends Load {
 
 		// 1. Get [Content_Types].xml
 		ContentTypeManager ctm = new ContentTypeManager();
+		InputStream is = null;
 		try {
-			InputStream is = partStore.loadPart("[Content_Types].xml");		
+			is = partStore.loadPart("[Content_Types].xml");		
 			ctm.parseContentTypesFile(is);
 		} catch (Docx4JException e) {
 			throw new Docx4JException("Couldn't get [Content_Types].xml from ZipFile", e);
 		} catch (NullPointerException e) {
 			throw new Docx4JException("Couldn't get [Content_Types].xml from ZipFile", e);
+		} finally {
+			IOUtils.closeQuietly(is);
 		}
-
-		// 2. Create a new Package
-		//		Eventually, you'll also be able to create an Excel package etc
-		//		but only the WordML package exists at present
-		OpcPackage p = ctm.createPackage();
-		p.setPartStore(partStore);
-
-		// 3. Start with _rels/.rels
-
-//		<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-//		  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>
-//		  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>
-//		  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
-//		</Relationships>		
 		
+		// .. now find the name of the main part
 		String partName = "_rels/.rels";
-		RelationshipsPart rp = getRelationshipsPartFromZip(p, partName);
+		RelationshipsPart rp = getRelationshipsPartFromZip(null, partName);
 		if (rp==null) {
 			throw new Docx4JException("_rels/.rels appears to be missing from this package!");
 		}
-		p.setRelationships(rp);
 		
-		log.debug( "Object created for: " + partName);
+		String mainPartName = PackageRelsUtil.getNameOfMainPart(rp);
+		PartName mainPartNameObj;
+		if (mainPartName.startsWith("/")) {
+			// OpenXML SDK 2.0 writes Target="/word/document.xml" (note leading "/")
+			mainPartNameObj = new PartName(mainPartName);
+		} else { 
+			// Microsoft Word, docx4j etc write Target="word/document.xml" 
+			mainPartNameObj = new PartName("/" + mainPartName);
+		}
+		String pkgContentType = ctm.getContentType(mainPartNameObj);
+
+		// 2. Create a new Package; this'll return the appropriate subclass
+		OpcPackage p = ctm.createPackage(pkgContentType);
+		log.info("Instantiated package of type " + p.getClass().getName() );
+		p.setPartStore(partStore);
+
+		p.setRelationships(rp);
+		rp.setSourceP(p); //
 		
 		// 5. Now recursively 
 //		(i) create new Parts for each thing listed
@@ -165,6 +178,8 @@ public class Load3 extends Load {
 
 		// 6.
 		registerCustomXmlDataStorageParts(p);
+		
+//		partStore.finishLoad();
 		
 		long endTime = System.currentTimeMillis();
 		log.info("package read;  elapsed time: " + Math.round((endTime-startTime)) + " ms" );
@@ -184,7 +199,6 @@ public class Load3 extends Load {
 			if (is==null) {
 				return null; // that's ok
 			}
-			//thePart = new RelationshipsPart( p, new PartName("/" + partName), is );
 			rp = new RelationshipsPart(new PartName("/" + partName) );
 			rp.setSourceP(p);
 			rp.unmarshal(is);
@@ -194,18 +208,9 @@ public class Load3 extends Load {
 			throw new Docx4JException("Error getting document from Zipped Part:" + partName, e);
 			
 		} finally {
-			if (is != null) {
-				try {
-					is.close();
-				} catch (IOException exc) {
-					exc.printStackTrace();
-				}
-			}
+			IOUtils.closeQuietly(is);
 		}
-		
 		return rp;
-	// debugPrint(contents);
-	// TODO - why don't any of the part names in this document start with "/"?
 	}
 	
 		
@@ -435,6 +440,8 @@ public class Load3 extends Load {
 //					((BinaryPart)part).setBinaryData(is);
 
 				} else if (part instanceof org.docx4j.openpackaging.parts.CustomXmlDataStoragePart ) {
+					// ContentTypeManager initially detects them as CustomXmlDataStoragePart;
+					// the below changes as necessary 
 					
 					// Is it a part we know?
 					is = partStore.loadPart( resolvedPartUri);
@@ -444,7 +451,13 @@ public class Load3 extends Load {
 						log.debug(o.getClass().getName());
 						
 						PartName name = part.getPartName();
-						
+						if (o instanceof CoverPageProperties) {
+							
+							part = new DocPropsCoverPagePart(name);	
+							((DocPropsCoverPagePart)part).setJaxbElement(
+									(CoverPageProperties)o);
+							
+						} else 						
 						if (o instanceof org.opendope.conditions.Conditions) {
 							
 							part = new ConditionsPart(name);
@@ -546,13 +559,7 @@ public class Load3 extends Load {
 			throw new Docx4JException("Failed to getPart", ex);			
 			
 		} finally {
-			if (is != null) {
-				try {
-					is.close();
-				} catch (IOException exc) {
-					exc.printStackTrace();
-				}
-			}
+			IOUtils.closeQuietly(is);
 		}
 		
         if (part == null) {
@@ -567,9 +574,9 @@ public class Load3 extends Load {
 			throws Docx4JException {
 
 		Part part = null;
-		InputStream in = null;					
+		InputStream is = null;					
 		try {
-			in = partStore.loadPart(resolvedPartUri);
+			is = partStore.loadPart(resolvedPartUri);
 			//in = partByteArrays.get(resolvedPartUri).getInputStream();
 			part = new BinaryPart( new PartName("/" + resolvedPartUri));
 			
@@ -578,30 +585,24 @@ public class Load3 extends Load {
 					new ContentType(
 							ctm.getContentType(new PartName("/" + resolvedPartUri)) ) );
 			
-			((BinaryPart)part).setBinaryData(in);
+			((BinaryPart)part).setBinaryData(is);
 			log.info("Stored as BinaryData" );
 			
 		} catch (Exception ioe) {
 			ioe.printStackTrace() ;
 		} finally {
-			if (in != null) {
-				try {
-					in.close();
-				} catch (IOException exc) {
-					exc.printStackTrace();
-				}
-			}
+			IOUtils.closeQuietly(is);
 		}
 		return part;
 	}	
 
-	// Testing
-	public static void main(String[] args) throws Exception {
-		String filepath = System.getProperty("user.dir") + "/sample-docs/word/FontEmbedded.docx";
-		log.info("Path: " + filepath );
-		ZipPartStore partLoader = new ZipPartStore(new File(filepath));
-		Load3 loader = new Load3(partLoader);
-		loader.get();		
-	}
+//	// Testing
+//	public static void main(String[] args) throws Exception {
+//		String filepath = System.getProperty("user.dir") + "/sample-docs/word/FontEmbedded.docx";
+//		log.info("Path: " + filepath );
+//		ZipPartStore partLoader = new ZipPartStore(new File(filepath));
+//		Load3 loader = new Load3(partLoader);
+//		loader.get();		
+//	}
 	
 }

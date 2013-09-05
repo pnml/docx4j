@@ -24,13 +24,15 @@ limitations under the License.
 
 import java.util.List;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.docx4j.openpackaging.exceptions.InvalidFormatException;
 import org.docx4j.openpackaging.parts.Part;
 import org.docx4j.openpackaging.parts.PartName;
 import org.docx4j.openpackaging.parts.WordprocessingML.FooterPart;
 import org.docx4j.openpackaging.parts.WordprocessingML.HeaderPart;
 import org.docx4j.openpackaging.parts.relationships.RelationshipsPart;
+import org.docx4j.wml.BooleanDefaultFalse;
 import org.docx4j.wml.BooleanDefaultTrue;
 import org.docx4j.wml.CTRel;
 import org.docx4j.wml.FooterReference;
@@ -41,7 +43,7 @@ import org.docx4j.wml.SectPr;
 
 public class HeaderFooterPolicy {
 
-	protected static Logger log = Logger.getLogger(HeaderFooterPolicy.class);	
+	protected static Logger log = LoggerFactory.getLogger(HeaderFooterPolicy.class);	
 	
 	private HeaderPart firstHeaderActive;
 	private HeaderPart firstHeader;  // Need this so it can be copied in next section, even if not used in this one
@@ -107,31 +109,30 @@ public class HeaderFooterPolicy {
 		List<CTRel> hdrFtrRefs = sectPr.getEGHdrFtrReferences();
 		BooleanDefaultTrue titlePage = sectPr.getTitlePg();
 		
-		// Headers. Does this sectPr have any?
-		if (hasHdrRef(hdrFtrRefs) ) {
-			setHeaderReferences(hdrFtrRefs, rels, titlePage );
-		} else {
-			// If not, get them from previousHF
-			firstHeader   = previousHF.firstHeader;
-			if (titlePage!=null && titlePage.isVal() ) {
-				firstHeaderActive   = previousHF.firstHeader;
-			}
-			defaultHeader = previousHF.defaultHeader;
-			evenHeader    =  previousHF.evenHeader; 
+		// Headers. 
+		// Init from previousHF
+		firstHeader   = previousHF.firstHeader;
+		if (titlePage!=null && titlePage.isVal() ) {
+			firstHeaderActive   = previousHF.firstHeader;
 		}
 		
+		defaultHeader = previousHF.defaultHeader;
+		evenHeader    =  previousHF.evenHeader; 
+		// and overwrite with whatever we have
+		// specific to this sectPr
+		setHeaderReferences(hdrFtrRefs, rels, titlePage );
+		
 		// Now, same for Footers. 
-		if (hasFtrRef(hdrFtrRefs) ) {
-			setFooterReferences(hdrFtrRefs, rels, titlePage );
-		} else {
-			// If not, get them from previousHF
-			firstFooter   = previousHF.firstFooter;
-			if (titlePage!=null && titlePage.isVal() ) {
-				firstFooterActive   = previousHF.firstFooter;
-			}
-			defaultFooter = previousHF.defaultFooter;
-			evenFooter    =  previousHF.evenFooter; 
+		// Init from previousHF
+		firstFooter   = previousHF.firstFooter;
+		if (titlePage!=null && titlePage.isVal() ) {
+			firstFooterActive   = previousHF.firstFooter;
 		}
+		defaultFooter = previousHF.defaultFooter;
+		evenFooter    =  previousHF.evenFooter; 
+		// and overwrite with whatever we have
+		// specific to this sectPr
+		setFooterReferences(hdrFtrRefs, rels, titlePage );
 		
 		if ((titlePage != null) && (titlePage.isVal())) {
 			if (firstHeaderActive == null) {
@@ -142,8 +143,26 @@ public class HeaderFooterPolicy {
 			}
 		}
 		
-		if (evenAndOddHeaders != null) {
+		if (evenAndOddHeaders == null) {
+			
+			log.debug("evenAndOddHeader setting missing; defaults to false");
+			
+			// per spec, assume false, so use odd only:-
+			
+			//Any even header/footer will be ignored
+			//As the setting is on the document level it is not necessary to
+			//keep any defined header/footer for inheritance
+			evenHeader = null;
+			evenFooter = null;
+			
+		} else {
+			
+			log.debug("evenAndOddHeader: "+ evenAndOddHeaders.isVal());
+			
 			if (evenAndOddHeaders.isVal()) {
+				
+				// If true, per the spec, use both even and odd
+				
 				//If there is only a default/odd header/footer present, then 
 				//the even header/footer is always a dummy empty header/footer
 				if (evenHeader == null) {
@@ -154,28 +173,11 @@ public class HeaderFooterPolicy {
 				}
 			}
 			else {
-				//Any even header/footer will be ignored
+				// Per spec, use odd only.  Any even header/footer will be ignored
 				//As the setting is on the document level it is not necessary to
 				//keep any defined header/footer for inheritance
 				evenHeader = null;
 				evenFooter = null;
-			}
-		}
-		else {
-			/* If there is an even and odd(default) Header but only a default Footer
-			 * then let the even Footer reference the default Footer.
-			 * Or if there is an even and odd(default) Footer but only a default Header
-			 * then let the even Header reference the default Header.
-			 * In Word the headers and footers are independent, but the xslfo-structure 
-			 * only knows about a simple page (with only default Header/Footers) or an 
-			 * even/odd page (with an even and an odd Header and Footer).
-			 */
-			
-			if ((evenHeader != null) && (defaultHeader != null) && (evenFooter == null)) {
-				evenFooter = defaultFooter;
-			}
-			else if ((evenFooter != null) && (defaultFooter != null) && (evenHeader == null)) {
-				evenHeader = defaultHeader;
 			}
 		}
 	}
@@ -214,22 +216,22 @@ public class HeaderFooterPolicy {
 		}
 	}
 
-	private boolean hasHdrRef(List<CTRel> hdrFtrRefs) {
-		
-		if (hdrFtrRefs==null) return false;
-		for (CTRel rel : hdrFtrRefs) {
-			if (rel instanceof HeaderReference ) return true; 
-		}
-		return false;
-	}
-	private boolean hasFtrRef(List<CTRel> hdrFtrRefs) {
-		
-		if (hdrFtrRefs==null) return false;
-		for (CTRel rel : hdrFtrRefs) {
-			if (rel instanceof FooterReference ) return true; 
-		}
-		return false;
-	}
+//	private boolean hasHdrRef(List<CTRel> hdrFtrRefs) {
+//		
+//		if (hdrFtrRefs==null) return false;
+//		for (CTRel rel : hdrFtrRefs) {
+//			if (rel instanceof HeaderReference ) return true; 
+//		}
+//		return false;
+//	}
+//	private boolean hasFtrRef(List<CTRel> hdrFtrRefs) {
+//		
+//		if (hdrFtrRefs==null) return false;
+//		for (CTRel rel : hdrFtrRefs) {
+//			if (rel instanceof FooterReference ) return true; 
+//		}
+//		return false;
+//	}
 
 	private void setHeaderReferences(List<CTRel> hdrFtrRefs, RelationshipsPart rels,
 			BooleanDefaultTrue titlePage) {

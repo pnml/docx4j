@@ -6,10 +6,10 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.docx4j.fonts.fop.fonts.EmbedFontInfo;
 import org.docx4j.fonts.fop.fonts.FontCache;
 import org.docx4j.fonts.fop.fonts.FontResolver;
@@ -34,7 +34,7 @@ import org.docx4j.openpackaging.parts.WordprocessingML.ObfuscatedFontPart;
  */
 public class PhysicalFonts {
 
-	protected static Logger log = Logger.getLogger(PhysicalFonts.class);
+	protected static Logger log = LoggerFactory.getLogger(PhysicalFonts.class);
 	
 	protected static FontCache fontCache;
 
@@ -64,9 +64,13 @@ public class PhysicalFonts {
     // parse font to ascertain font info
     private static FontInfoFinder fontInfoFinder; 
 
+    private static String osName;
+    
     static {
 		
 		try {
+
+		    osName = System.getProperty("os.name");
 
 	        fontCache = FontCache.load();
 	        if (fontCache == null) {
@@ -119,12 +123,8 @@ public class PhysicalFonts {
 		
 		// Currently we use FOP - inspired by org.apache.fop.render.PrintRendererConfigurator
 		// iText also has a font discoverer (which we could use
-		// instead, but don't).  
-		// It remains to be seen which of XSL FO or iText
-		// PDF generation becomes the most popular.
-		// (If it is iText, then there _may_ be something
-		//  to be said for using their font discovery instead)
-		
+		// instead, but don't, since in docx4j we're settled on
+		// PDF output via XSL FO)		
 		
         FontFileFinder fontFileFinder = new FontFileFinder();
         
@@ -336,7 +336,7 @@ public class PhysicalFonts {
 //							log.error(afm + " does not support UTF encoding, so ignoring");
 //							continue;
 //						} catch (Exception e) {
-//							log.error(e);
+//							log.error(e.getMessage(), e);
 //							continue;
 //						}
 			        	pf = new PhysicalFont(triplet.getName(),fontInfo, fontResolver);
@@ -361,7 +361,7 @@ public class PhysicalFonts {
 //								log.error(pfm + " does not support UTF encoding, so ignoring");
 //								continue;
 //							} catch (Exception e) {
-//								log.error(e);
+//								log.error(e.getMessage(), e);
 //								continue;
 //							}
 				        	pf = new PhysicalFont(triplet.getName(), fontInfo, fontResolver);
@@ -388,6 +388,10 @@ public class PhysicalFonts {
 		    		// We also need to add it to map by filename
 		    		String filename = pf.getEmbeddedFile();
 		    		filename = filename.substring( filename.lastIndexOf("/")+1).toLowerCase();
+		    		
+		    		if (osName.startsWith("Mac")) {
+		    			filename = filename.replace("%20", " "); 
+		    		}
 		    		physicalFontMapByFilenameLowercase.put(filename, pf);
 		    		log.debug("added to filename map: " + filename);
 		        	
@@ -426,7 +430,13 @@ public class PhysicalFonts {
 			
 			// We have to go via the file name, grrr..
 			// since MicrosoftFonts.xml doesn't give the associate font name
-			String filename = msFont.getBold().getFilename().toLowerCase();
+
+			String filename;
+		    if (osName.startsWith("Mac")) {
+		    	filename = msFont.getBold().getMac().toLowerCase();
+		    } else {
+		    	filename = msFont.getBold().getFilename().toLowerCase();
+		    }
 			log.debug("Fetching: " + filename);
 			return physicalFontMapByFilenameLowercase.get(filename);
 		}		
@@ -449,7 +459,12 @@ public class PhysicalFonts {
 			
 			// We have to go via the file name, grrr..
 			// since MicrosoftFonts.xml doesn't give the associate font name
-			String filename = msFont.getBolditalic().getFilename().toLowerCase();
+			String filename;
+		    if (osName.startsWith("Mac")) {
+		    	filename = msFont.getBolditalic().getMac().toLowerCase();
+		    } else {
+		    	filename = msFont.getBolditalic().getFilename().toLowerCase();
+		    }	
 			log.debug("Fetching: " + filename);
 			return physicalFontMapByFilenameLowercase.get(filename);
 		}		
@@ -472,7 +487,12 @@ public class PhysicalFonts {
 			
 			// We have to go via the file name, grrr..
 			// since MicrosoftFonts.xml doesn't give the associate font name
-			String filename = msFont.getItalic().getFilename().toLowerCase();
+			String filename;
+		    if (osName.startsWith("Mac")) {
+		    	filename = msFont.getItalic().getMac().toLowerCase();
+		    } else {
+		    	filename = msFont.getItalic().getFilename().toLowerCase();
+		    }	
 			log.debug("Fetching: " + filename);
 			return physicalFontMapByFilenameLowercase.get(filename);
 		}

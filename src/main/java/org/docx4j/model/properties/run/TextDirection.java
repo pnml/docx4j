@@ -19,7 +19,11 @@
  */
 package org.docx4j.model.properties.run;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.docx4j.dml.CTTextCharacterProperties;
 import org.docx4j.jaxb.Context;
+import org.docx4j.model.properties.Property;
 import org.docx4j.wml.BooleanDefaultTrue;
 import org.docx4j.wml.RPr;
 import org.w3c.dom.Element;
@@ -29,6 +33,8 @@ import org.w3c.dom.css.CSSValue;
  * @since 2.8.1
  */	
 public class TextDirection extends AbstractRunProperty {
+	
+	protected static Logger log = LoggerFactory.getLogger(TextDirection.class);		
 	
 	public final static String CSS_NAME = "direction"; 
 	public final static String FO_NAME  = "writing-mode";  // ?? writing-mode="rl-tb"
@@ -78,5 +84,10 @@ public class TextDirection extends AbstractRunProperty {
 	public void set(RPr rPr) {
 		rPr.setRtl( (BooleanDefaultTrue)this.getObject() );
 	}
+
+    @Override
+    public void set(CTTextCharacterProperties rPr) {
+        // TODO
+    }
 	
 }

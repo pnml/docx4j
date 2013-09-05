@@ -39,6 +39,12 @@ import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathFactory;
 
 import org.apache.commons.lang.text.StrTokenizer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.docx4j.XmlUtils;
 import org.docx4j.jaxb.NamespacePrefixMappings;
 import org.docx4j.openpackaging.exceptions.Docx4JException;
@@ -61,6 +67,8 @@ import org.w3c.dom.Text;
  *  
  * */
 public abstract class XmlPart extends Part {
+	
+	protected static Logger log = LoggerFactory.getLogger(XmlPart.class);	
 	
 	public XmlPart(PartName partName) throws InvalidFormatException {
 		super(partName);
@@ -112,12 +120,32 @@ public abstract class XmlPart extends Part {
 	
 	public abstract Document getDocument() throws Docx4JException;
 	
+	/**
+	 * Note: If the result is an empty node-set, it will be converted to an
+	 * empty string, rather than null.
+	 * 
+	 * @param xpathString
+	 * @param prefixMappings
+	 * @return
+	 * @throws Docx4JException
+	 */
 	public String xpathGetString(String xpathString, String prefixMappings)  throws Docx4JException {
 		try {
 			getNamespaceContext().registerPrefixMappings(prefixMappings);
 			
 			String result = xPath.evaluate(xpathString, doc );
-			log.debug(xpathString + " ---> " + result);
+			if (result.equals("") && log.isWarnEnabled()) {
+				// Provide diagnostics as to cause of '' result 
+				NodeList nl = (NodeList) xPath.evaluate(xpathString, doc, XPathConstants.NODESET );
+				if (nl.getLength()==0) {
+					// empty node-set is converted to empty string
+					log.warn("No match for " + xpathString + " so result is empty string");
+				} else {
+					log.debug(xpathString + " ---> '" + result + "'");
+				}
+			} else {
+				log.debug(xpathString + " ---> '" + result + "'");
+			}
 			return result;
 		} catch (Exception e) {
 			throw new Docx4JException("Problems evaluating xpath '" + xpathString + "'", e);

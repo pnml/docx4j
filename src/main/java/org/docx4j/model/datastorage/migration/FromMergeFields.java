@@ -8,7 +8,8 @@ import java.util.UUID;
 
 import javax.xml.bind.JAXBElement;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.docx4j.TraversalUtil;
 import org.docx4j.TraversalUtil.CallbackImpl;
 import org.docx4j.XmlUtils;
@@ -16,7 +17,7 @@ import org.docx4j.customXmlProperties.DatastoreItem;
 import org.docx4j.customXmlProperties.SchemaRefs;
 import org.docx4j.customXmlProperties.SchemaRefs.SchemaRef;
 import org.docx4j.jaxb.Context;
-import org.docx4j.model.fields.FieldLocator;
+import org.docx4j.model.fields.ComplexFieldLocator;
 import org.docx4j.model.fields.FieldRef;
 import org.docx4j.model.fields.FieldsPreprocessor;
 import org.docx4j.model.fields.merge.DataFieldName;
@@ -73,7 +74,7 @@ import org.opendope.xpaths.Xpaths.Xpath.DataBinding;
  */
 public class FromMergeFields extends AbstractMigrator {
 	
-	private static Logger log = Logger.getLogger(FromMergeFields.class);
+	private static Logger log = LoggerFactory.getLogger(FromMergeFields.class);
 	
 	public WordprocessingMLPackage migrate(WordprocessingMLPackage pkgIn) throws Exception {
 		
@@ -88,11 +89,11 @@ public class FromMergeFields extends AbstractMigrator {
 		createParts(pkgOut);
 		
 		FieldsPreprocessor.complexifyFields(pkgOut.getMainDocumentPart() );
-		System.out.println("complexified: " 
+		log.debug("complexified: " 
 				+ XmlUtils.marshaltoString(pkgOut.getMainDocumentPart().getJaxbElement(), true));
 		
 		// find fields
-		FieldLocator fl = new FieldLocator();
+		ComplexFieldLocator fl = new ComplexFieldLocator();
 		new TraversalUtil(pkgOut.getMainDocumentPart().getContent(), fl);
 		log.info("Found " + fl.getStarts().size() + " fields ");
 		
@@ -134,8 +135,8 @@ public class FromMergeFields extends AbstractMigrator {
 		// Populate
 		for (FieldRef fr : fieldRefs) {
 			
-			String instr = fr.getInstr();
-			if ( isMergeField(instr) ) {
+			if ( fr.getFldName().equals("MERGEFIELD") ) {
+				String instr = extractInstr(fr.getInstructions() );
 
 				// eg <w:instrText xml:space="preserve"> MERGEFIELD  Kundenstrasse \* MERGEFORMAT </w:instrText>
 				// or <w:instrText xml:space="preserve"> MERGEFIELD  Kundenstrasse</w:instrText>
@@ -167,16 +168,32 @@ public class FromMergeFields extends AbstractMigrator {
 		return pkgOut;
 	}
 	
-	public static boolean isMergeField(String type) {
+	private static String extractInstr(List<Object> instructions) {
+		// For MERGEFIELD, expect the list to contain a simple string
 		
-		if (type.contains("MERGEFIELD")) {
-			return true;
+		if (instructions.size()!=1) {
+			log.error("TODO MERGEFIELD field contained complex instruction");
+			return null;
+		}
+		
+		Object o = XmlUtils.unwrap(instructions.get(0));
+		if (o instanceof Text) {
+			return ((Text)o).getValue();
 		} else {
-			return false;
+			log.error("TODO: extract field name from " + o.getClass().getName() );
+			log.error(XmlUtils.marshaltoString(instructions.get(0), true, true) );
+			return null;
 		}
 	}
 	
-
+//	public static boolean isMergeField(String type) {
+//		
+//		if (type.contains("MERGEFIELD")) {
+//			return true;
+//		} else {
+//			return false;
+//		}
+//	}
 
 	/**
 	 * @param args

@@ -20,8 +20,11 @@
 package org.docx4j.convert.out.html;
 
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.docx4j.model.properties.Property;
 import org.docx4j.model.properties.PropertyFactory;
 import org.docx4j.model.properties.paragraph.PBorderBottom;
@@ -39,6 +42,7 @@ import org.docx4j.wml.RPr;
 import org.docx4j.wml.Style;
 import org.docx4j.wml.TcPr;
 import org.docx4j.wml.TrPr;
+import org.w3c.dom.Element;
 
 /** These is an utility class with some common functions for the 
  *  HTML-exporters and the SvgExporter.
@@ -46,17 +50,50 @@ import org.docx4j.wml.TrPr;
  */
 public class HtmlCssHelper {
 
-	private static Logger log = Logger.getLogger(HtmlCssHelper.class);
+	private static Logger log = LoggerFactory.getLogger(HtmlCssHelper.class);
 	
-    public static void createCssForStyles(OpcPackage opcPackage, StyleTree styleTree, StringBuffer result) {
+	//Temporary maps that get used in applyAttributes, they are kept here to be able to reuse it
+	private static ThreadLocal<Map<String, Property>> threadLocalTempMap = new ThreadLocal<Map<String, Property>>();
+		
+    public static void createDefaultCss(boolean hasDefaultHeader, boolean hasDefaultFooter, StringBuilder result) {
+    	//TODO: This method needs to be replaced with something similar to the LayoutMasterSetBuilder of fo
+		result.append("/*paged media */ div.header {display: none }");
+		result.append("div.footer {display: none } /*@media print { */");
+		if (hasDefaultHeader) {
+			result.append("div.header {display: block; position: running(header) }");
+		}
+		if (hasDefaultFooter) {
+			result.append("div.footer {display: block; position: running(footer) }");
+		}
+		
+		result.append("@page { size: A4; margin: 10%; @top-center {");
+		result.append("content: element(header) } @bottom-center {");
+		result.append("content: element(footer) } }");
+
+		result.append("/*element styles*/ .del  {text-decoration:line-through;color:red;} ");
+		result.append(".ins {text-decoration:none;background:#c0ffc0;padding:1px;}");
+    	
+    }
+	
+    public static void createCssForStyles(OpcPackage opcPackage, StyleTree styleTree, StringBuilder result) {
 
 		// First iteration - table styles
 		result.append("\n /* TABLE STYLES */ \n");    	
 		Tree<AugmentedStyle> tableTree = styleTree.getTableStylesTree();		
     	for (org.docx4j.model.styles.Node<AugmentedStyle> n : tableTree.toList() ) {
+    		
+    		if (n.getData()==null) {
+    			if (n.equals(tableTree.getRootElement() )) {
+    				// that's ok
+    			} else {
+    				log.error("Node<AugmentedStyle> unexpectedly null data" );
+    			}
+    			continue;
+    		}
+    		
     		Style s = n.getData().getStyle();
 
-    		result.append( "."+ s.getStyleId()  + " {display:table;" );
+    		result.append( "table."+ s.getStyleId()  + " {display:table;" );
     		
     		// TblPr
     		if (s.getTblPr()==null) {
@@ -106,9 +143,19 @@ public class HtmlCssHelper {
 		result.append("\n /* PARAGRAPH STYLES */ \n");    	
 		Tree<AugmentedStyle> pTree = styleTree.getParagraphStylesTree();		
     	for (org.docx4j.model.styles.Node<AugmentedStyle> n : pTree.toList() ) {
+    		
+    		if (n.getData()==null) {
+    			if (n.equals(pTree.getRootElement() )) {
+    				// shouldn't happen in paragraph case, but still, that's ok
+    			} else {
+    				log.error("Node<AugmentedStyle> unexpectedly null data" );
+    			}
+    			continue;
+    		}
+    		
     		Style s = n.getData().getStyle();
 
-    		result.append( "."+ s.getStyleId()  + " {display:block;" );
+    		result.append( "p."+ s.getStyleId()  + " {display:block;" );
         	if (s.getPPr()==null) {
         		log.debug("null pPr for style " + s.getStyleId());
         	} else {
@@ -128,9 +175,19 @@ public class HtmlCssHelper {
 		
 		Tree<AugmentedStyle> cTree = styleTree.getCharacterStylesTree();		
     	for (org.docx4j.model.styles.Node<AugmentedStyle> n : cTree.toList() ) {
+    		
+    		if (n.getData()==null) {
+    			if (n.equals(cTree.getRootElement() )) {
+    				// that's ok
+    			} else {
+    				log.error("Node<AugmentedStyle> unexpectedly null data" );
+    			}
+    			continue;
+    		}
+    		
     		Style s = n.getData().getStyle();
 
-    		result.append( "."+ s.getStyleId()  + " {display:inline;" );
+    		result.append( "span."+ s.getStyleId()  + " {display:inline;" );
         	if (s.getRPr()==null) {
         		log.warn("! null rPr for character style " + s.getStyleId());
         	} else {
@@ -140,7 +197,7 @@ public class HtmlCssHelper {
     	}	
     }
     
-    protected static void createCss(CTTblPrBase  tblPr, StringBuffer result) {
+    protected static void createCss(CTTblPrBase  tblPr, StringBuilder result) {
     	
 		if (tblPr==null) {
 			return;
@@ -152,7 +209,7 @@ public class HtmlCssHelper {
     	}    
     }
     
-    protected static void createCss(List<CTTblStylePr> tblStylePrList, StringBuffer result) {
+    protected static void createCss(List<CTTblStylePr> tblStylePrList, StringBuilder result) {
     	// STTblStyleOverrideType
     	
 		if (tblStylePrList==null) {
@@ -165,7 +222,7 @@ public class HtmlCssHelper {
     	}    
     }
     
-    protected static void createCss(TrPr trPr, StringBuffer result) {
+    protected static void createCss(TrPr trPr, StringBuilder result) {
     	// includes jc, trHeight, wAfter, tblCellSpacing
     	
 		if (trPr==null) {
@@ -178,7 +235,7 @@ public class HtmlCssHelper {
     	}    
     }
     
-    protected static void createCss(TcPr tcPr, StringBuffer result) {
+    protected static void createCss(TcPr tcPr, StringBuilder result) {
     	// includes TcPrInner.TcBorders, CTShd, TcMar, CTVerticalJc
     	
 		if (tcPr==null) {
@@ -191,7 +248,7 @@ public class HtmlCssHelper {
     	}    
     }
     
-    public static void createCss(OpcPackage opcPackage, PPr pPr, StringBuffer result, boolean ignoreBorders) {
+    public static void createCss(OpcPackage opcPackage, PPr pPr, StringBuilder result, boolean ignoreBorders) {
     	
 		if (pPr==null) {
 			return;
@@ -220,7 +277,7 @@ public class HtmlCssHelper {
     }
     
     
-    public static void createCss(OpcPackage opcPackage, RPr rPr, StringBuffer result) {
+    public static void createCss(OpcPackage opcPackage, RPr rPr, StringBuilder result) {
 
     	List<Property> properties = PropertyFactory.createProperties(opcPackage, rPr);
     	
@@ -228,5 +285,43 @@ public class HtmlCssHelper {
     		result.append(p.getCssProperty());
     	}
     }
+
+	public static void applyAttributes(List<Property> properties, Element node) {
+	Map<String, Property> tempAttributeMap = null;
+	StringBuilder buffer = null;
+		if ((properties != null) && (!properties.isEmpty())) {
+			tempAttributeMap = getTempMap();
+			if ((properties != null) && (!properties.isEmpty())) {
+				buffer = new StringBuilder();
+				for (int i=0; i<properties.size(); i++) {
+					tempAttributeMap.put(properties.get(i).getCssName(), properties.get(i));
+				}
+				for (Property property : tempAttributeMap.values()) {
+					buffer.append(property.getCssProperty());
+				}
+				tempAttributeMap.clear();
+				appendStyle(node, buffer.toString());
+			}
+		}
+	}
+
+	public static void appendStyle(Element node, String newValue) {
+	String style = node.getAttribute("style");
+		if ((style != null) && (style.length() > 0)) {
+			node.setAttribute("style", style + newValue);
+		}
+		else {
+			node.setAttribute("style", newValue);
+		}
+	}
+	
+	protected static Map<String, Property> getTempMap() {
+	Map<String, Property> ret = threadLocalTempMap.get();
+		if (ret == null) {
+			ret = new TreeMap<String, Property>();
+			threadLocalTempMap.set(ret);
+		}
+		return ret;
+	}
 
 }

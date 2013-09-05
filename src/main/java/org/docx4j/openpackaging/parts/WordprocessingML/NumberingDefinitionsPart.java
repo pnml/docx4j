@@ -33,7 +33,8 @@ import javax.xml.transform.Templates;
 import javax.xml.transform.dom.DOMResult;
 import javax.xml.transform.stream.StreamSource;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.docx4j.XmlUtils;
 import org.docx4j.jaxb.Context;
 import org.docx4j.jaxb.JaxbValidationEventHandler;
@@ -47,6 +48,7 @@ import org.docx4j.openpackaging.exceptions.InvalidFormatException;
 import org.docx4j.openpackaging.exceptions.InvalidOperationException;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
 import org.docx4j.openpackaging.parts.JaxbXmlPart;
+import org.docx4j.openpackaging.parts.JaxbXmlPartXPathAware;
 import org.docx4j.openpackaging.parts.PartName;
 import org.docx4j.openpackaging.parts.relationships.Namespaces;
 import org.docx4j.wml.Lvl;
@@ -59,12 +61,13 @@ import org.docx4j.wml.PPrBase.Ind;
 import org.docx4j.wml.PPrBase.NumPr;
 import org.docx4j.wml.PPrBase.NumPr.Ilvl;
 import org.docx4j.wml.PPrBase.NumPr.NumId;
+import org.docx4j.wml.Style;
 
 
 
-public final class NumberingDefinitionsPart extends JaxbXmlPart<Numbering> {
+public final class NumberingDefinitionsPart extends JaxbXmlPartXPathAware<Numbering> {
 	
-	private static Logger log = Logger.getLogger(NumberingDefinitionsPart.class);	
+	private static Logger log = LoggerFactory.getLogger(NumberingDefinitionsPart.class);	
 	
 	public NumberingDefinitionsPart(PartName partName) throws InvalidFormatException {
 		super(partName);
@@ -126,21 +129,6 @@ public final class NumberingDefinitionsPart extends JaxbXmlPart<Numbering> {
 
             abstractListDefinitions.put(absNumDef.getID(), absNumDef);
 
-            // now go through the abstract list definitions and update those that are linked to other styles
-            if (absNumDef.hasLinkedStyle() )
-            {
-//                String linkStyleXPath = "/w:document/w:numbering/w:abstractNum/w:styleLink[@w:val=\"" + absNumDef.Value.LinkedStyleId + "\"]";
-//                XmlNode linkedStyleNode = mainDoc.SelectSingleNode(linkStyleXPath, nsm);
-//
-//                if (linkedStyleNode != null)
-//                {
-//                    absNumDef.Value.UpdateDefinitionFromLinkedStyle(linkedStyleNode.ParentNode, nsm);
-//                }
-                
-                // find the linked style
-                // TODO - review
-                absNumDef.UpdateDefinitionFromLinkedStyle(abstractNumNode);
-            }
         }
 
         // instantiate the list number definitions
@@ -150,9 +138,74 @@ public final class NumberingDefinitionsPart extends JaxbXmlPart<Numbering> {
             	= new ListNumberingDefinition(numNode, abstractListDefinitions);
 
             instanceListDefinitions.put(listDef.getListNumberId(), listDef);
-            log.debug("Added list: " + listDef.getListNumberId() );
+//            log.debug("Added list: " + listDef.getListNumberId() );
         }
 
+    }
+    
+    public void resolveLinkedAbstractNum(StyleDefinitionsPart sdp) {
+    	
+    	if (sdp==null) {
+    		log.warn("No StyleDefinitionsPart found");
+    		return;
+    	}
+    	
+        for (Numbering.AbstractNum abstractNum : getJaxbElement().getAbstractNum() ) {
+        	
+        	// <w:numStyleLink w:val="MyListStyle"/>
+        	if (abstractNum.getNumStyleLink()==null) continue;
+        	
+        	// there is also abstractNum.getStyleLink(), but ignore that
+        	
+        	String numStyleId = abstractNum.getNumStyleLink().getVal();
+        	
+        	Style s = sdp.getStyleById(numStyleId);
+        	if (s==null) {
+        		log.warn("For w:numStyleLink, couldn't find style " + numStyleId);
+        		continue;
+        	}
+        	if (s.getPPr()==null || s.getPPr().getNumPr()==null) {
+        		log.warn("For w:numStyleLink, style " + numStyleId + " has no w:numPr");
+        		continue;        		
+        	}
+        	
+        	NumPr styleNumPr = s.getPPr().getNumPr();
+        	
+        	// Get the concrete list this point to
+        	if (styleNumPr.getNumId()==null) {
+        		log.warn("For w:numStyleLink, style " + numStyleId + " w:numPr has no w:numId");
+        		continue;        		        		
+        	}
+        	BigInteger concreteListId = styleNumPr.getNumId().getVal();
+        	
+        	// Get the target abstract num
+        	ListNumberingDefinition lnd = getInstanceListDefinitions().get(concreteListId.toString());
+        	if (lnd==null) {
+        		log.warn("No ListNumberingDefinition entry with ID " + concreteListId.toString());
+        	}
+        	Numbering.AbstractNum linkedNum = lnd.getAbstractListDefinition().getAbstractNumNode();
+
+        	// OK, update
+            AbstractListNumberingDefinition absNumDef 
+            	= abstractListDefinitions.get(abstractNum.getAbstractNumId().toString());
+            
+            absNumDef.updateDefinitionFromLinkedStyle(linkedNum);
+            
+            // Also update the underlying abstract list
+            if (abstractNum.getLvl().size()>0) {
+            	log.warn("Cowardly refusing to overwrite existing List<Lvl>" );
+            } else {
+            	abstractNum.getLvl().clear();
+            	abstractNum.getLvl().addAll(linkedNum.getLvl());
+            		// This list is treated as a separate list by Word (ie its numbers are incremented
+            		// independently), and this code honours that.
+            }
+            
+            
+            log.info("Updated abstract list def " + abstractNum.getAbstractNumId().toString() + " based on w:numStyleLink " + numStyleId );
+        }
+    	
+    	
     }
     
     /**
@@ -304,6 +357,11 @@ public final class NumberingDefinitionsPart extends JaxbXmlPart<Numbering> {
 			
 			org.docx4j.wml.Style style = propertyResolver.getStyle( lvl.getPStyle().getVal() );
 			
+			if (style==null) {
+				log.error("Couldn't find style " + lvl.getPStyle().getVal());
+				return null;
+			}
+			
 			// If the style has a w:ind, return it.
 			// Otherwise, continue
 			if (style.getPPr() != null
@@ -332,7 +390,7 @@ public final class NumberingDefinitionsPart extends JaxbXmlPart<Numbering> {
 	 * Add the specified definition, allocating it a new w:abstractNumId.
 	 * 
 	 * Also create and add an associated ListNumberingDefinition, and return
-	 * the w:numId of this associated ListNumberingDefinition (since that is
+	 * this associated ListNumberingDefinition (since that is
 	 * what you are likely to use in the document). 
 	 * 
 	 * @param abstractNum

@@ -1,5 +1,5 @@
 /*
- *  Copyright 2007-2008, Plutext Pty Ltd.
+ *  Copyright 2007-2013, Plutext Pty Ltd.
  *   
  *  This file is part of docx4j.
 
@@ -19,7 +19,8 @@
  */
 
 
-package org.docx4j.wml;
+package org.docx4j.wml; 
+
 
 import javax.xml.bind.JAXBElement;
 import javax.xml.bind.Unmarshaller;
@@ -29,9 +30,9 @@ import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlTransient;
 import javax.xml.bind.annotation.XmlType;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.jvnet.jaxb2_commons.ppp.Child;
-
 
 /**
  * <p>Java class for sdt element declaration.
@@ -66,14 +67,14 @@ import org.jvnet.jaxb2_commons.ppp.Child;
 public class SdtBlock implements SdtElement, Child
 {
 
-	private static Logger log = Logger.getLogger(SdtBlock.class);		
+	private static Logger log = LoggerFactory.getLogger(SdtBlock.class);		
 	
-	protected SdtPr sdtPr;
+    protected SdtPr sdtPr;
     protected CTSdtEndPr sdtEndPr;
     protected SdtContentBlock sdtContent;
     @XmlTransient
     private Object parent;
-    
+
     /**
      * Gets the value of the sdtPr property.
      * 
@@ -133,7 +134,7 @@ public class SdtBlock implements SdtElement, Child
     public ContentAccessor getSdtContent() {
         return sdtContent;
     }
-    
+
     /**
      * Sets the value of the sdtContent property.
      * 

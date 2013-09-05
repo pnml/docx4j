@@ -22,8 +22,10 @@ package org.docx4j.fonts;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Maps font names used in the document to 
@@ -59,7 +61,7 @@ import org.apache.log4j.Logger;
 public abstract class Mapper {
 	
 	
-	protected static Logger log = Logger.getLogger(Mapper.class);
+	protected static Logger log = LoggerFactory.getLogger(Mapper.class);
 
 	public Mapper() {
 		super();
@@ -85,7 +87,7 @@ public abstract class Mapper {
 	 * @param wmlFonts - the content model for the fonts part
 	 * @throws Exception
 	 */
-	public abstract void populateFontMappings(Map documentFontNames, 
+	public abstract void populateFontMappings(Set<String> documentFontNames, 
 			org.docx4j.wml.Fonts wmlFonts ) throws Exception;
 	
 	

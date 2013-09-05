@@ -20,22 +20,43 @@
 
 package org.docx4j.openpackaging.parts.PresentationML;
 
+import java.io.InputStream;
+import java.util.List;
 import java.util.Random;
 
+import javax.xml.bind.Binder;
 import javax.xml.bind.JAXBException;
+import javax.xml.bind.UnmarshalException;
 import javax.xml.bind.Unmarshaller;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.transform.Templates;
+import javax.xml.transform.dom.DOMResult;
 
-import org.pptx4j.jaxb.Context;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.docx4j.XmlUtils;
+import org.docx4j.jaxb.JAXBAssociation;
+import org.docx4j.jaxb.JaxbValidationEventHandler;
+import org.docx4j.jaxb.XPathBinderAssociationIsPartialException;
 import org.docx4j.openpackaging.contenttype.ContentTypes;
+import org.docx4j.openpackaging.exceptions.Docx4JException;
 import org.docx4j.openpackaging.exceptions.InvalidFormatException;
 import org.docx4j.openpackaging.exceptions.PartUnrecognisedException;
+import org.docx4j.openpackaging.io3.stores.PartStore;
 import org.docx4j.openpackaging.parts.JaxbXmlPart;
+import org.docx4j.openpackaging.parts.JaxbXmlPartXPathAware;
 import org.docx4j.openpackaging.parts.Part;
 import org.docx4j.openpackaging.parts.PartName;
+import org.docx4j.openpackaging.parts.XPathEnabled;
+import org.pptx4j.jaxb.Context;
+import org.w3c.dom.Node;
 
 
 
-public abstract class JaxbPmlPart<E> extends JaxbXmlPart<E> {
+public abstract class JaxbPmlPart<E> extends JaxbXmlPartXPathAware<E>  {
+	
+	protected static Logger log = LoggerFactory.getLogger(JaxbPmlPart.class);
+	
 	
 	public final static String COMMON_SLIDE_DATA = 
 	    "<p:cSld  xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\">"
@@ -113,24 +134,5 @@ public abstract class JaxbPmlPart<E> extends JaxbXmlPart<E> {
 		}
 	}	
 	
-//    public E unmarshal( java.io.InputStream is ) throws JAXBException {
-//    	
-//		try {
-//			setJAXBContext(Context.jcPML);						
-//		    		    
-//			Unmarshaller u = jc.createUnmarshaller();
-//			u.setEventHandler(new org.docx4j.jaxb.JaxbValidationEventHandler());
-//
-//			jaxbElement = (E)u.unmarshal( is );						
-//			log.debug( this.getClass().getName() + " unmarshalled" );									
-//
-//		} catch (JAXBException e ) {
-//			log.error(e);
-//			throw e;
-//		}
-//		return jaxbElement;
-//    }	
-    
-    
 	
 }

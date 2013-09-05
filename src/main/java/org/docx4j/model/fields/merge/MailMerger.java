@@ -5,17 +5,25 @@ import java.io.ByteArrayOutputStream;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
-import org.apache.log4j.Logger;
+import javax.xml.bind.JAXBElement;
+import javax.xml.transform.TransformerException;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.docx4j.Docx4jProperties;
 import org.docx4j.TraversalUtil;
 import org.docx4j.XmlUtils;
 import org.docx4j.jaxb.Context;
-import org.docx4j.model.fields.FieldLocator;
+import org.docx4j.model.fields.ComplexFieldLocator;
 import org.docx4j.model.fields.FieldRef;
 import org.docx4j.model.fields.FieldsPreprocessor;
+import org.docx4j.model.fields.FldSimpleModel;
+import org.docx4j.model.fields.FormattingSwitchHelper;
 import org.docx4j.model.structure.PageDimensions;
 import org.docx4j.model.structure.PageSizePaper;
 import org.docx4j.model.structure.SectionWrapper;
@@ -24,7 +32,6 @@ import org.docx4j.openpackaging.io.SaveToZipFile;
 import org.docx4j.openpackaging.packages.OpcPackage;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
 import org.docx4j.openpackaging.parts.JaxbXmlPart;
-import org.docx4j.openpackaging.parts.Part;
 import org.docx4j.openpackaging.parts.WordprocessingML.FooterPart;
 import org.docx4j.openpackaging.parts.WordprocessingML.HeaderPart;
 import org.docx4j.openpackaging.parts.relationships.Namespaces;
@@ -33,11 +40,20 @@ import org.docx4j.openpackaging.parts.relationships.RelationshipsPart.AddPartBeh
 import org.docx4j.relationships.Relationship;
 import org.docx4j.wml.Body;
 import org.docx4j.wml.BooleanDefaultTrue;
+import org.docx4j.wml.CTFFData;
+import org.docx4j.wml.CTFFName;
+import org.docx4j.wml.CTFFTextInput;
+import org.docx4j.wml.CTFFTextType;
 import org.docx4j.wml.CTPageNumber;
 import org.docx4j.wml.CTRel;
 import org.docx4j.wml.ContentAccessor;
+import org.docx4j.wml.ObjectFactory;
 import org.docx4j.wml.P;
+import org.docx4j.wml.R;
+import org.docx4j.wml.STFFTextType;
 import org.docx4j.wml.SectPr;
+import org.docx4j.wml.Text;
+
 
 
 /**
@@ -62,13 +78,14 @@ import org.docx4j.wml.SectPr;
  * Images and hyperlinks should be ok. But numbering 
  * will continue, as will footnotes/endnotes. 
  * 
+ * From 3.0, there is some support for formatting switches
+ * (date/time, numeric, and general), and basic 
+ * support for MERGEFORMAT.
+ *  
  * LIMITATIONS:
  * - no support for text before (\b) and text after (\f)
  *   switches
  * - no support for \m and \v switches
- * - no support formatting (date/time, numeric, or general), 
- *   including MERGEFORMAT (which means preserve
- *   the formatting of any existing field result)
  * - no support for multiple MERGEFIELD in a single
  *   instruction (eg MERGEFIELD CoutesyTitle \f " " MERGEFIELD FirstName \f " " MERGEFIELD LastName ) 
  * 
@@ -77,7 +94,7 @@ import org.docx4j.wml.SectPr;
  */
 public class MailMerger {
 
-	private static Logger log = Logger.getLogger(MailMerger.class);		
+	private static Logger log = LoggerFactory.getLogger(MailMerger.class);		
 
 	/**
 	 * A "poor man's" approach, which generates the mail merge  
@@ -99,6 +116,7 @@ public class MailMerger {
 	 * results as a single docx, and just hopes for the best.
 	 * Images and hyperlinks should be ok. But numbering 
 	 * will continue, as will footnotes/endnotes. 
+	 * [Advert:] If this isn't working for you, MergeDocx will solve your problems. 
 	 * @param input
 	 * @param data
 	 * @param processHeadersAndFooters process headers and footers in FIRST section only.
@@ -110,10 +128,14 @@ public class MailMerger {
 	public static WordprocessingMLPackage getConsolidatedResultCrude(WordprocessingMLPackage input, 
 			List<Map<DataFieldName, String>> data, boolean processHeadersAndFooters) throws Docx4JException {
 		
+		FormTextFieldNames formTextFieldNames = new FormTextFieldNames(); 		
+		
+		// create contents destined for the main document part
 		FieldsPreprocessor.complexifyFields(input.getMainDocumentPart() );
-		System.out.println("complexified: " + XmlUtils.marshaltoString(input.getMainDocumentPart().getJaxbElement(), true));
-		List<List<Object>> results = performOverList(input.getMainDocumentPart().getContent(), data );
+		log.debug("complexified: " + XmlUtils.marshaltoString(input.getMainDocumentPart().getJaxbElement(), true));
+		List<List<Object>> mdpResults = performOverList(input, input.getMainDocumentPart().getContent(), data, formTextFieldNames );
 
+		// headers/footers
 		Map<CTRel, JaxbXmlPart> hfTemplates = null;
 		BooleanDefaultTrue titlePage = null;
 		if (processHeadersAndFooters) {
@@ -135,24 +157,23 @@ public class MailMerger {
 				JaxbXmlPart part = (JaxbXmlPart)input.getMainDocumentPart().getRelationshipsPart().getPart(relId);
 				FieldsPreprocessor.complexifyFields(part );
 				
-				System.out.println("complexified: " + XmlUtils.marshaltoString(part.getJaxbElement(), true));
+				log.debug("complexified: " + XmlUtils.marshaltoString(part.getJaxbElement(), true));
 				
 				hfTemplates.put(rel, part);
 			}
 		}
 		
-		// Prepare for cloning
+		// Create WordprocessingMLPackage target, by cloning
 		OpcPackage result = null;
-		
-		// Zip it up
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		SaveToZipFile saver = new SaveToZipFile(input);
 		saver.save(baos);
 		byte[] template = baos.toByteArray();
-
-		
 		WordprocessingMLPackage target = WordprocessingMLPackage.load(
 				new ByteArrayInputStream(template));
+		
+		
+		// populate main document part
 		SectPr documentSeparator = getDocumentSeparator(target);
 		if (processHeadersAndFooters) {
 			if (titlePage!=null
@@ -180,10 +201,13 @@ public class MailMerger {
 		 */
 		
 		int i = 0;
-		for (List<Object> content : results) {
+		for (List<Object> content : mdpResults) {
+			
 						
 			// now inject the content
 			target.getMainDocumentPart().getContent().addAll(content);
+
+			System.out.println("@@" + XmlUtils.marshaltoString(target.getMainDocumentPart().getJaxbElement(), true, true) );
 			
 			// add sectPr to final paragraph
 			Object last = content.get( content.size()-1);
@@ -215,9 +239,9 @@ public class MailMerger {
 					}
 					
 					// Populate it
-					List<Object> newContent = performOnInstance(
+					List<Object> newContent = performOnInstance(input,
 							((ContentAccessor)part).getContent(), 
-							data.get(i) );	
+							data.get(i), formTextFieldNames );	
 					((ContentAccessor)clonedPart).getContent().addAll(newContent);
 					
 					// Add it
@@ -353,9 +377,14 @@ public class MailMerger {
 //		WordprocessingMLPackage target = WordprocessingMLPackage.load(
 //				new ByteArrayInputStream(template));
 		
+		// Required where converting MERGEFIELD to FORMTEXT
+		FormTextFieldNames formTextFieldNames = new FormTextFieldNames(); 
+		
 		// MDP
 		FieldsPreprocessor.complexifyFields(input.getMainDocumentPart() );
-		List<Object> mdpResults = performOnInstance(input.getMainDocumentPart().getContent(), data );
+//		log.debug("\n\n COMPLEXIFIED " + input.getMainDocumentPart().getPartName().getName() + "\n\n"
+//				+ input.getMainDocumentPart().getXML() + "\n");
+		List<Object> mdpResults = performOnInstance(input, input.getMainDocumentPart().getContent(), data, formTextFieldNames );
 		input.getMainDocumentPart().getContent().clear();
 		input.getMainDocumentPart().getContent().addAll(mdpResults);
 		
@@ -368,14 +397,22 @@ public class MailMerger {
 						|| r.getType().equals(Namespaces.FOOTER)) {
 					
 					JaxbXmlPart part = (JaxbXmlPart)rp.getPart(r);
+
+					log.debug("\n\n BEFORE " + part.getPartName().getName() + "\n\n"
+							+ XmlUtils.marshaltoString(part.getJaxbElement(), true, true) + "\n");
 					
 					FieldsPreprocessor.complexifyFields(part );
-					List<Object> results = performOnInstance(
-							((ContentAccessor)part).getContent(), data );
+					
+					log.debug("\n\n COMPLEXIFIED " + part.getPartName().getName() + "\n\n"
+							+ XmlUtils.marshaltoString(part.getJaxbElement(), true, true) + "\n");
+					
+					List<Object> results = performOnInstance(input,
+							((ContentAccessor)part).getContent(), data, formTextFieldNames );
 					((ContentAccessor)part).getContent().clear();
 					((ContentAccessor)part).getContent().addAll(results);
 					
-					System.out.println(XmlUtils.marshaltoString(part.getJaxbElement(), true));
+					log.debug("\n\n AFTER " + part.getPartName().getName() + "\n\n"
+							+ XmlUtils.marshaltoString(part.getJaxbElement(), true, true) + "\n");
 					
 				}			
 			}		
@@ -397,22 +434,25 @@ public class MailMerger {
 	 * @return
 	 * @throws Docx4JException 
 	 */
-	private static List<List<Object>> performOverList(List<Object> contentList, 
-			List<Map<DataFieldName, String>> data ) throws Docx4JException {
+	private static List<List<Object>> performOverList(WordprocessingMLPackage input, 
+			List<Object> contentList, 
+			List<Map<DataFieldName, String>> data,
+			FormTextFieldNames formTextFieldNames) throws Docx4JException {
 		
-				
 		List<List<Object>> results = new ArrayList<List<Object>>();
 		for (Map<DataFieldName, String> datamap : data) {
 			
 			results.add(
-					performOnInstance(contentList, datamap));
+					performOnInstance(input, contentList, datamap, formTextFieldNames));
 		}
 		
 		return results;
 	}
 	
-	private static List<Object> performOnInstance(List<Object> contentList, 
-			Map<DataFieldName, String> datamap ) throws Docx4JException {
+	private static List<Object> performOnInstance(WordprocessingMLPackage input, 
+			List<Object> contentList, 
+			Map<DataFieldName, String> datamap,
+			FormTextFieldNames formTextFieldNames) throws Docx4JException {
 		
 		// We need our fieldRefs point to the correct objects;
 		// the easiest way to do this is to create them after cloning!
@@ -423,7 +463,7 @@ public class MailMerger {
 		Body shellClone = (Body)XmlUtils.deepCopy(shell);
 		
 		// find fields
-		FieldLocator fl = new FieldLocator();
+		ComplexFieldLocator fl = new ComplexFieldLocator();
 		new TraversalUtil(shellClone, fl);
 		log.info("Found " + fl.getStarts().size() + " fields ");
 		
@@ -431,39 +471,109 @@ public class MailMerger {
 		// canonicalise and setup fieldRefs 
 		List<FieldRef> fieldRefs = new ArrayList<FieldRef>();
 		for( P p : fl.getStarts() ) {
-			int index = ((ContentAccessor)p.getParent()).getContent().indexOf(p);
-			P newP = FieldsPreprocessor.canonicalise(p, fieldRefs);
-			System.out.println("NewP length: " + newP.getContent().size() );
-			((ContentAccessor)p.getParent()).getContent().set(index, newP);
+			int index;
+			if (p.getParent() instanceof ContentAccessor) {
+				// 2.8.1
+				index = ((ContentAccessor)p.getParent()).getContent().indexOf(p);
+				P newP = FieldsPreprocessor.canonicalise(p, fieldRefs);
+				log.debug("Canonicalised: " + XmlUtils.marshaltoString(newP, true, true));
+				
+				((ContentAccessor)p.getParent()).getContent().set(index, newP);
+			} else if (p.getParent() instanceof java.util.List) {
+				// 3.0
+				index = ((java.util.List)p.getParent()).indexOf(p);
+				P newP = FieldsPreprocessor.canonicalise(p, fieldRefs);
+				log.debug("NewP length: " + newP.getContent().size() );
+				((java.util.List)p.getParent()).set(index, newP);				
+			} else {
+				throw new Docx4JException ("Unexpected parent: " + p.getParent().getClass().getName() );
+			}
 		}
 		
 		// Populate
 		for (FieldRef fr : fieldRefs) {
 			
-			String instr = fr.getInstr();
-			if ( isMergeField(instr) ) {
-
-				// eg <w:instrText xml:space="preserve"> MERGEFIELD  Kundenstrasse \* MERGEFORMAT </w:instrText>
-				// or <w:instrText xml:space="preserve"> MERGEFIELD  Kundenstrasse</w:instrText>
+			if ( fr.getFldName().equals("MERGEFIELD") ) {
 				
-				String tmp = instr.substring( instr.indexOf("MERGEFIELD") + 10);
-				tmp = tmp.trim();
-				String key  = tmp.indexOf(" ") >-1 ? tmp.substring(0, tmp.indexOf(" ")) : tmp ;
-				log.info("Key: '" + key + "'");
-				
-				String val = datamap.get( new DataFieldName(key));
+				String instr = extractInstr(fr.getInstructions() );
+				String datafieldName = getDatafieldNameFromInstr(instr);
+				String val = datamap.get( new DataFieldName(datafieldName));
+				String gFormat = null; // required only for FORMTEXT conversion
 				
 				if (val==null) {
-					log.warn("Couldn't find value for key: '" + key + "'");
+					log.warn("Couldn't find value for key: '" + datafieldName + "'");
 				} else {
+					
+					// Now format the result
+					FldSimpleModel fsm = new FldSimpleModel();
+					try {
+						fsm.build(instr);
+						val = FormattingSwitchHelper.applyFormattingSwitch(input, fsm, val);
+						
+						gFormat = FormattingSwitchHelper.findFirstSwitchValue("\\*", fsm.getFldParameters(), true);
+						// Solely for potential use in OutputField.AS_FORMTEXT_REGULAR
+						// We are in fact applying all formatting switches above.
+						
+					} catch (TransformerException e) {
+						log.warn("Can't format the field", e);
+					}
+					
 					fr.setResult(val);
 				}
 				
-				// If doing an actual mail merge, the begin-separate run is removed, as is the end run
-				fr.getParent().getContent().remove(fr.getBeginRun());
-				fr.getParent().getContent().remove(fr.getEndRun());
+				if (fieldFate.equals(OutputField.AS_FORMTEXT_REGULAR)) {
+					
+					log.debug(gFormat);
+					// TODO if we're going to use gFormat, setup FSM irrespective of whether we can find key 
+					
+					
+					// TODO: other format instructions
+//					if (gFormat!=null) {
+//						if (gFormat.equals("Upper")) {
+//							gFormat = "UPPERCASE";
+//						} else if (gFormat.equals("Lower")) {
+//							gFormat = "LOWERCASE";
+//						} 
+//					}
+					
+					// replace instrText
+					// eg MERGEFIELD  CLIENT.ORGANIZATIONSTATE \* Upper  \* MERGEFORMAT
+					// to FORMTEXT
+					// Do this first, so we can abort without affecting output
+					List<Object> instructions = fr.getInstructions();
+					if (instructions.size()!=1) {
+						log.error("TODO MERGEFIELD field contained complex instruction");
+						continue;
+					}
+					Object o = XmlUtils.unwrap(instructions.get(0));
+					if (o instanceof Text) {
+						((Text)o).setValue("FORMTEXT");
+					} else {
+						log.error("TODO: set FORMTEXT in" + o.getClass().getName() );
+						log.error(XmlUtils.marshaltoString(instructions.get(0), true, true) );
+						continue;
+					}
+					
+					String fieldName = formTextFieldNames.generateName(datafieldName);
+					log.debug("Field name normalisation: " + datafieldName + " -> " + fieldName);
+					setFormFieldProperties(fr, fieldName, null);
+					
+					// remove <w:highlight w:val="lightGray"/>, if present
+					// (corresponds in Word to clicking Legacy Forms > Form Field Shading)
+					// so that the result is not printed in grey
+					R resultR = fr.getResultsSlot();
+					if (resultR.getRPr()!=null
+							&& resultR.getRPr().getHighlight()!=null) {
+						resultR.getRPr().setHighlight(null);
+					}
+					
+				} else if (!fieldFate.equals(OutputField.KEEP_MERGEFIELD)) {
+					// If doing an actual mail merge, the begin-separate run is removed, as is the end run				
+					fr.getParent().getContent().remove(fr.getBeginRun());
+					fr.getParent().getContent().remove(fr.getEndRun());
+				}
 				
-//				System.out.println(XmlUtils.marshaltoString(
+//				System.out.println("AFTER " +XmlUtils.marshaltoString(
 //						fr.getParent(), true, true));
 				
 			}
@@ -473,15 +583,229 @@ public class MailMerger {
 
 	}
 	
+	/**
+	 * Get the datafield name from, for example
+	 * <w:instrText xml:space="preserve"> MERGEFIELD  Kundenstrasse \* MERGEFORMAT </w:instrText>
+	 * or <w:instrText xml:space="preserve"> MERGEFIELD  Kundenstrasse</w:instrText>
+	 */
+	private static String getDatafieldNameFromInstr(String instr) {
+		
 
-	public static boolean isMergeField(String type) {
+//		System.out.println("BEFORE " +XmlUtils.marshaltoString(
+//			fr.getParent(), true, true));
+		
+		String tmp = instr.substring( instr.indexOf("MERGEFIELD") + 10);
+		tmp = tmp.trim();
+		String datafieldName  = tmp.indexOf(" ") >-1 ? tmp.substring(0, tmp.indexOf(" ")) : tmp ;
+		log.info("Key: '" + datafieldName + "'");
+
+		return datafieldName;
+		
+	}
 	
-		if (type.contains("MERGEFIELD")) {
-			return true;
+	private static String extractInstr(List<Object> instructions) {
+		// For MERGEFIELD, expect the list to contain a simple string
+		
+		if (instructions.size()!=1) {
+			log.error("TODO MERGEFIELD field contained complex instruction");
+			/* eg
+			 * 
+			 *    <w:r>
+			        <w:instrText xml:space="preserve"> MERGEFIELD  lasauv</w:instrText>
+			      </w:r>
+			      <w:r>
+			        <w:instrText xml:space="preserve">egarde  \* MERGEFORMAT </w:instrText>
+			      </w:r>
+			      
+				for (Object i : instructions) {
+					i = XmlUtils.unwrap(i);
+					if (i instanceof Text) {
+						log.error( ((Text)i).getValue());
+					} else {
+						log.error(XmlUtils.marshaltoString(i, true, true) );
+					}
+				}
+			 */
+			return null;
+		}
+		
+		Object o = XmlUtils.unwrap(instructions.get(0));
+		if (o instanceof Text) {
+			return ((Text)o).getValue();
 		} else {
-			return false;
+			log.error("TODO: extract field name from " + o.getClass().getName() );
+			log.error(XmlUtils.marshaltoString(instructions.get(0), true, true) );
+			return null;
 		}
 	}
+	
+	
+	
+	private static OutputField fieldFate = OutputField.REMOVED;
+    /**
+     * What to do with the MERGEFIELD in the output docx.
+     * 
+     * Default is REMOVED.
+     * 
+     * KEEP_MERGEFIELD will allow you to perform
+	 * another merge on the output document.
+	 * 
+	 * The AS_FORMTEXT options convert the MERGEFIELD to a FORMTEXT field.
+	 * This is convenient if you want users to
+	 * be able to edit the field, where editing is restricted
+	 * to forms. 
+	 * 
+     * @param fieldFate
+     */
+    public static void setMERGEFIELDInOutput(OutputField fieldFate) {
+    	MailMerger.fieldFate = fieldFate;
+    }
+
+	
+	  public enum OutputField {
+
+		    DEFAULT,
+		    REMOVED,
+		    KEEP_MERGEFIELD,
+		    AS_FORMTEXT_REGULAR;
+//		    AS_FORMTEXT_TYPED,
+//		    AS_FORMTEXT_TYPED_FORMATTED;
+	  } 	
+	
+
+	private static void setFormFieldProperties(FieldRef fr, String ffName, String ffTextInputFormat) {
+		
+		ObjectFactory wmlObjectFactory = Context.getWmlObjectFactory();
+		
+	        // Create object for ffData
+	        CTFFData ffdata = wmlObjectFactory.createCTFFData(); 
+	        fr.setFormFieldProperties(ffdata);
+	        
+	            // Create object for name (wrapped in JAXBElement) 
+	            CTFFName ffname = wmlObjectFactory.createCTFFName(); 
+	            JAXBElement<org.docx4j.wml.CTFFName> ffnameWrapped = wmlObjectFactory.createCTFFDataName(ffname); 
+	            ffdata.getNameOrEnabledOrCalcOnExit().add( ffnameWrapped); 
+	                ffname.setVal(ffName); 
+	                
+	            // Create object for enabled (wrapped in JAXBElement) 
+	            BooleanDefaultTrue booleandefaulttrue = wmlObjectFactory.createBooleanDefaultTrue(); 
+	            JAXBElement<org.docx4j.wml.BooleanDefaultTrue> booleandefaulttrueWrapped = wmlObjectFactory.createCTFFDataEnabled(booleandefaulttrue); 
+	            ffdata.getNameOrEnabledOrCalcOnExit().add( booleandefaulttrueWrapped); 
+	            
+	            // Create object for calcOnExit (wrapped in JAXBElement) 
+	            BooleanDefaultTrue booleandefaulttrue2 = wmlObjectFactory.createBooleanDefaultTrue(); 
+	            JAXBElement<org.docx4j.wml.BooleanDefaultTrue> booleandefaulttrueWrapped2 = wmlObjectFactory.createCTFFDataCalcOnExit(booleandefaulttrue2); 
+	            ffdata.getNameOrEnabledOrCalcOnExit().add( booleandefaulttrueWrapped2); 
+	            
+	            // Create object for textInput (wrapped in JAXBElement) 
+	            CTFFTextInput fftextinput = wmlObjectFactory.createCTFFTextInput(); 
+	            JAXBElement<org.docx4j.wml.CTFFTextInput> fftextinputWrapped = wmlObjectFactory.createCTFFDataTextInput(fftextinput); 
+	            ffdata.getNameOrEnabledOrCalcOnExit().add( fftextinputWrapped); 
+	            
+	            //Set type to regular
+	            CTFFTextType ffTextType = wmlObjectFactory.createCTFFTextType();
+	            ffTextType.setVal(STFFTextType.REGULAR);
+	            fftextinput.setType(ffTextType);
+	            
+	            if (ffTextInputFormat!=null) {
+	            
+	                // Create object for format
+	                CTFFTextInput.Format fftextinputformat = wmlObjectFactory.createCTFFTextInputFormat(); 
+	                fftextinput.setFormat(fftextinputformat); 
+	                    fftextinputformat.setVal( ffTextInputFormat);  // eg "UPPERCASE"
+	            }
+	}
+	
+	/**
+	 * If we're converting MERGEFIELD to FORMTEXT, it is
+	 * desirable to make the w:fldChar/w:ffData/w:name
+	 * unique within the docx (though Word 2010 can still open the docx if they
+	 * aren't), and to remove spaces 
+	 * 
+	 * @author jharrop
+	 * @since 3.0.0
+	 */
+	private static class FormTextFieldNames {
+		
+		// MS-OE376 says Word only allows strings of length at most 40 for the name attribute.
+		
+		// Also, by experiment (in Word 2010), only alphanumberic characters and "_" are allowed 
+		// (no spaces, other symbols/punctuation etc),
+		// and it can't start with a numeral.  Comparison is case insensitive.
+		// Some UTF-8 characters are allowed eg ϣ
+		Pattern pattern = java.util.regex.Pattern.compile("[^a-zA-Z0-9]");
+		
+		// http://webapp.docx4java.org/OnlineDemo/ecma376/WordML/bookmarkStart.html
+		// says:
+		//    If multiple bookmarks in a document share the same name, then the first bookmark 
+		//    (defined by the location of the bookmarkStart element in document order) shall 
+		//    be maintained, and all subsequent bookmarks should be ignored.
+		
+		// By experiment (inserting a cross ref) it looks like Word 2010 actually ignores the first!
+		// Not that that matters here, since we make the field names unique
+		
+		private FormTextFieldNameSet names = new FormTextFieldNameSet(); 
+		
+		public String generateName(String input) {
+			
+			// Strip characters
+			String unpunctuated = pattern.matcher(input).replaceAll("_");			
+			
+			// Ensure it starts with a letter
+			char c = unpunctuated.charAt(0);
+			if('0'<=c && c<='9') {
+				unpunctuated = "z" + unpunctuated;
+			} else if(c=='_') {
+				unpunctuated = "z" + unpunctuated;
+			}
+			
+			if (names.contains(unpunctuated)) {
+				// Then make unique
+				int i = 2;
+				String newName = null;
+		    	do {
+		    		newName = unpunctuated + i;
+		    		i++;
+		    		
+		    	} while (names.contains(newName));
+		    	unpunctuated = newName;
+			}
+			
+			// Add to FormTextFieldNameSet
+	    	names.add(unpunctuated);
+			
+	    	return unpunctuated;
+		}
+		
+		/**
+		 * Case insensitive key
+		 * (matching http://www.w3.org/TR/css3-fonts/#font-family-casing
+		 */
+		private static class FormTextFieldNameSet extends HashSet<String> {
+
+		    @Override
+		    public boolean add(String key) {
+		       log.debug("Added '" + key.toLowerCase() + "'");	
+		       return super.add(key.toLowerCase());
+		    }
+
+		    // not @Override because that would require the key parameter to be of type Object
+		    public boolean contains(String key) {
+		       return super.contains(key.toLowerCase());
+		    }
+		}	
+		
+	}
+	
+	
+//	public static boolean isMergeField(String type) {
+//	
+//		if (type.contains("MERGEFIELD")) {
+//			return true;
+//		} else {
+//			return false;
+//		}
+//	}
 	
 
 }

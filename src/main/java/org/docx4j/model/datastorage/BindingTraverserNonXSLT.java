@@ -1,3 +1,22 @@
+/**
+ *  Copyright 2010-2013, Plutext Pty Ltd.
+ *   
+ *  This file is part of docx4j.
+
+    docx4j is licensed under the Apache License, Version 2.0 (the "License"); 
+    you may not use this file except in compliance with the License. 
+
+    You may obtain a copy of the License at 
+
+        http://www.apache.org/licenses/LICENSE-2.0 
+
+    Unless required by applicable law or agreed to in writing, software 
+    distributed under the License is distributed on an "AS IS" BASIS, 
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+    See the License for the specific language governing permissions and 
+    limitations under the License.
+
+ **/
 package org.docx4j.model.datastorage;
 
 import java.util.ArrayList;
@@ -9,7 +28,8 @@ import java.util.StringTokenizer;
 import javax.xml.bind.JAXBException;
 
 import org.apache.commons.codec.binary.Base64;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.xmlgraphics.image.loader.ImageSize;
 import org.docx4j.TraversalUtil;
 import org.docx4j.TraversalUtil.CallbackImpl;
@@ -52,7 +72,7 @@ import org.w3c.dom.DocumentFragment;
 
 public class BindingTraverserNonXSLT implements BindingTraverserInterface {
 	
-	private static Logger log = Logger.getLogger(BindingTraverserNonXSLT.class);		
+	private static Logger log = LoggerFactory.getLogger(BindingTraverserNonXSLT.class);		
 	
 	JaxbXmlPart part;
 	org.docx4j.openpackaging.packages.OpcPackage pkg;
@@ -156,7 +176,7 @@ public class BindingTraverserNonXSLT implements BindingTraverserInterface {
 				
 			} else if (map!=null && map.containsKey(OpenDoPEHandler.BINDING_ROLE_CONDITIONAL) ) {
 				// Do nothing
-			} else if (map!=null && map.containsKey(OpenDoPEHandler.BINDING_ROLE_RPTD) ) {
+			} else if (map!=null && map.containsKey(OpenDoPEHandler.BINDING_RESULT_RPTD) ) {
 				// Do nothing
 				
 			} else if (map!=null && map.containsKey(OpenDoPEHandler.BINDING_ROLE_RPT_POS_CON) ) {
@@ -171,6 +191,7 @@ public class BindingTraverserNonXSLT implements BindingTraverserInterface {
 				sdt.getSdtContent().getContent().addAll(
 						this.xpathGenerateRuns(
 							(WordprocessingMLPackage)pkg, part, 
+							sdtPr,
 							sdtPr.getDataBinding(), 
 							//sdtParent, contentChild, 
 							null, isMultiline));
@@ -186,13 +207,14 @@ public class BindingTraverserNonXSLT implements BindingTraverserInterface {
 				sdt.getSdtContent().getContent().addAll(
 						this.xpathGenerateRuns(
 							(WordprocessingMLPackage)pkg, part, 
+							sdtPr,
 							sdtPr.getDataBinding(), 
 							//sdtParent, contentChild, 
 							null, false));
 				
 			} else {
 				
-				System.out.println("Not processing " + XmlUtils.marshaltoString(sdtPr, true));
+				log.debug("Not processing " + XmlUtils.marshaltoString(sdtPr, true));
 				 
 			}
 			
@@ -377,7 +399,8 @@ public class BindingTraverserNonXSLT implements BindingTraverserInterface {
 		
 		public List<Object> xpathGenerateRuns(
 				WordprocessingMLPackage pkg, 
-				JaxbXmlPart sourcePart,				
+				JaxbXmlPart sourcePart,
+				SdtPr sdtPr,
 				CTDataBinding dataBinding,
 //				String sdtParent,
 //				String contentChild,				
@@ -420,7 +443,7 @@ public class BindingTraverserNonXSLT implements BindingTraverserInterface {
 							addBrRunToDocFrag(contents, rPr);
 						}
 						
-						processString(sourcePart, contents, line, rPr);						
+						processString(sourcePart, contents, line, sdtPr, rPr);						
 					}
 					
 				} else {
@@ -431,11 +454,11 @@ public class BindingTraverserNonXSLT implements BindingTraverserInterface {
 						sb.append( st.nextToken() );
 					}
 					
-					processString(sourcePart, contents, sb.toString(), rPr);
+					processString(sourcePart, contents, sb.toString(), sdtPr, rPr);
 				}				
 				
 			} catch (Exception e) {
-				log.error(e);
+				log.error(e.getMessage(), e);
 				return null;
 			}
 			
@@ -455,22 +478,33 @@ public class BindingTraverserNonXSLT implements BindingTraverserInterface {
 			contents.add(run);
 		}
 		
-		private void processString(JaxbXmlPart sourcePart, List<Object> contents, String text, RPr rPr) throws JAXBException {
+		private void processString(JaxbXmlPart sourcePart, List<Object> contents, String text, SdtPr sdtPr, RPr rPr) throws JAXBException {
 			
-			// Since we'll calculate min, we don't want -1 for no match
-			int NOT_FOUND = 99999;
-			int pos1 = text.indexOf("http://")==-1 ? NOT_FOUND : text.indexOf("http://");
-			int pos2 = text.indexOf("https://")==-1 ? NOT_FOUND : text.indexOf("https://");
-			int pos3 = text.indexOf("mailto:")==-1 ? NOT_FOUND : text.indexOf("mailto:");
-			
-			int pos = Math.min(pos1,  Math.min(pos2, pos3));
-			
-			if (pos==NOT_FOUND || BindingHandler.getHyperlinkStyleId() == null) {				
+			int pos = BindingHandler.getHyperlinkResolver().getIndexOfURL(text);
+			if (pos==-1 || BindingHandler.getHyperlinkStyleId() == null) {				
 				addRunToDocFrag(sourcePart, contents,  text,  rPr);
 				return;
 			} 
 			
 			// There is a hyperlink to deal with
+			
+			// We'll need to remove:
+			//   <w:dataBinding w:storeItemID="{5448916C-134B-45E6-B8FE-88CC1FFC17C3}" w:xpath="/myxml[1]/element2[1]" w:prefixMappings=""/>
+			//   <w:text w:multiLine="true"/>
+			// or Word can't open the resulting docx, but we can't do it here,
+			sdtPr.setDataBinding(null);
+			
+			Object sdtPrText = null;
+			for (Object o : sdtPr.getRPrOrAliasOrLock() ) {
+				Object unwrapped = XmlUtils.unwrap(o);
+				if (unwrapped instanceof CTSdtText) {
+					sdtPrText = o;
+					break;
+				}
+			}
+			if (sdtPrText!=null) {
+				sdtPr.getRPrOrAliasOrLock().remove(sdtPrText);
+			}
 			
 			if (pos==0) {
 				int spacePos = text.indexOf(" ");
@@ -485,7 +519,7 @@ public class BindingTraverserNonXSLT implements BindingTraverserInterface {
 				
 				addHyperlinkToDocFrag( sourcePart,  contents,  first);
 				// .. now the recursive bit ..
-				processString(sourcePart,  contents,  rest,  rPr);	
+				processString(sourcePart,  contents,  rest, sdtPr, rPr);	
 				return;
 			}
 			
@@ -494,7 +528,7 @@ public class BindingTraverserNonXSLT implements BindingTraverserInterface {
 			
 			addRunToDocFrag( sourcePart,  contents,  first, rPr);
 			// .. now the recursive bit ..
-			processString(sourcePart,  contents,  rest,  rPr);				
+			processString(sourcePart,  contents,  rest, sdtPr, rPr);				
 		}
 		
 		private void addRunToDocFrag(JaxbXmlPart sourcePart, List<Object> contents, String string, RPr rPr) {
