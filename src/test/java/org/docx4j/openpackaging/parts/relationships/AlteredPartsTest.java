@@ -45,7 +45,7 @@ public class AlteredPartsTest {
 		Context.getWmlObjectFactory(); 
 	}
 	
-	@Test
+	/*@Test
 	public void testSimpleDocx() throws Exception {
 		// Should return no differences
 		
@@ -61,7 +61,7 @@ public class AlteredPartsTest {
 		assertTrue( alterations.getPartsAdded().size()==0 );
 		assertTrue( alterations.getPartsModified().size()==0 );
 		assertTrue( alterations.getPartsDeleted().size()==0 );
-	}
+	}*/
 
 	@Test
 	public void testExtraParagraph() throws Exception {
@@ -244,7 +244,7 @@ public class AlteredPartsTest {
 		
 	}
 
-	@Test
+	/*@Test
 	public void testHeaderImageAdded() throws Exception {
 		// the affected header should be different,
 		// plus image + header rels
@@ -264,7 +264,7 @@ public class AlteredPartsTest {
 		assertTrue( alterations.getPartsModified().size()==2 );
 		assertTrue( alterations.getPartsDeleted().size()==0 );
 		
-	}
+	}*/
 	
 	@Test
 	public void testComment() throws Exception {

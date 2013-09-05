@@ -43,75 +43,75 @@
     <!-- L O G G E R S                                                          -->
     <!-- ====================================================================== -->
 
-    <logger name="com.plutext.cmis">
+    <!--<logger name="com.plutext.cmis">
   		<level value="debug"/> 
-	</logger>
+	</logger>-->
 
-    <logger name="org.apache.commons">
+    <!--<logger name="org.apache.commons">
   		<level value="info"/> 
-	</logger>
+	</logger>-->
 	
-    <logger name="org.apache.fop">
+    <!--<logger name="org.apache.fop">
   		<level value="info"/> 
-	</logger>
+	</logger>-->
 	
 
-    <logger name="org.docx4j">
+    <!--<logger name="org.docx4j">
   		<level value="info"/> 
-	</logger>	
+	</logger>-->
 
-    <logger name="org.docx4j.convert.in">
+    <!--<logger name="org.docx4j.convert.in">
   		<level value="debug"/> 
-	</logger>	
+	</logger>-->
 
-    <logger name="org.docx4j.convert.out">
+    <!--<logger name="org.docx4j.convert.out">
   		<level value="info"/> 
-	</logger>	
+	</logger>-->
 	
-    <logger name="org.docx4j.convert.out.common.preprocess">
+    <!--<logger name="org.docx4j.convert.out.common.preprocess">
   		<level value="info"/> 
-	</logger>	
+	</logger>-->
 
 	
-    <logger name="org.docx4j.convert.out.common.writer.AbstractMessageWriter">
+    <!--<logger name="org.docx4j.convert.out.common.writer.AbstractMessageWriter">
   		<level value="debug"/> 
-	</logger>	
+	</logger>-->
 	
-	<logger name="org.docx4j.jaxb">
+	<!--<logger name="org.docx4j.jaxb">
 		  		<level value="error"/> 
-	</logger>	
+	</logger>-->
 
-	<logger name="org.docx4j.model.datastorage">
+	<!--<logger name="org.docx4j.model.datastorage">
 		  		<level value="debug"/> 
-	</logger>	
+	</logger>-->
 
-	<logger name="org.docx4j.model.fields">
-		  		<level value="debug"/> 
-	</logger>	
+	<!--<logger name="org.docx4j.model.fields">
+		  		<level value="debug"/>
+	</logger>-->
 	
-	<logger name="org.docx4j.convert.out.common.preprocess.FieldsCombiner">
+	<!--<logger name="org.docx4j.convert.out.common.preprocess.FieldsCombiner">
 		  		<level value="debug"/> 
-	</logger>	
+	</logger>-->
 
-	<logger name="org.docx4j.model.structure">
+	<!--<logger name="org.docx4j.model.structure">
 		  		<level value="debug"/> 
-	</logger>	
+	</logger>-->
 	    	
-    <logger name="org.docx4j.openpackaging">
+    <!--<logger name="org.docx4j.openpackaging">
   		<level value="info"/> 
-	</logger>
+	</logger>-->
 
-    <logger name="org.docx4j.openpackaging.io">
+    <!--<logger name="org.docx4j.openpackaging.io">
   		<level value="debug"/> 
-	</logger>
+	</logger>-->
 
-    <logger name="org.docx4j.openpackaging.packages">
+    <!--<logger name="org.docx4j.openpackaging.packages">
   		<level value="info"/> 
-	</logger>
+	</logger>-->
 
-    <logger name="org.docx4j.openpackaging.parts">
+    <!--<logger name="org.docx4j.openpackaging.parts">
   		<level value="info"/> 
-	</logger>
+	</logger>-->
 
 <!-- 
     <logger name="org.docx4j.fonts">
@@ -129,7 +129,7 @@
  -->
  
     <root>
-        <level value="info" />
+        <level value="error" />
         <appender-ref ref="console"/>
         <!-- <appender-ref ref="error"/> -->
     </root>

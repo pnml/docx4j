@@ -68,7 +68,7 @@ public class HTMLExporterXslt extends AbstractHTMLExporter3 {
 	protected static HTMLExporterXslt instance = null;
 	
 	protected static class OutHtmlURIResolver implements URIResolver {
-		@Override
+//		@Override
 		public Source resolve(String href, String base) throws TransformerException {
 		  try {
 			return new StreamSource(
@@ -119,21 +119,21 @@ public class HTMLExporterXslt extends AbstractHTMLExporter3 {
 			return ret;
 		}
 
-		@Override
+		/*@Override
 		protected Document getSourceDocument(HTMLSettings conversionSettings, HTMLConversionContext conversionContext) throws Docx4JException {
 		WordprocessingMLPackage wmlPackage = conversionContext.getWmlPackage();
 			//TODO: the docx2xhtml-core.xslt only knows about the MainDocumentPart, therefore it's 
 			//unable to process any sections....
 			return XmlUtils.marshaltoW3CDomDocument(wmlPackage.getMainDocumentPart().getJaxbElement());
-		}
+		}*/
 
-		@Override
+		/*@Override
 		public void process(HTMLSettings conversionSettings, HTMLConversionContext conversionContext, OutputStream outputStream) throws Docx4JException {
 			//TODO: The docx2fo takes care of moving to the MainDocumentPart,
 			// docx2html-core doesn't, would make sense to have the same behaviour... 
 			conversionContext.setCurrentPartMainDocument();
 			super.process(conversionSettings, conversionContext, outputStream);
-		}
+		}*/
 		
 		
 		
