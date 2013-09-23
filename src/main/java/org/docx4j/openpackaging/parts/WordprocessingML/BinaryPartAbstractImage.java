@@ -271,7 +271,7 @@ public abstract class BinaryPartAbstractImage extends BinaryPart {
 		// Also reported on Win XP, but in my testing, the files were deleting OK anyway.
 		fos = null;
 		fis = null;
-		System.gc();		
+//		System.gc();
         if (tmpImageFile.delete()) {
             log.debug(".. deleted " + tmpImageFile.getAbsolutePath());
 		} else {
